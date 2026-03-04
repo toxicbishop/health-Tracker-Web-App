@@ -1,37 +1,14 @@
 {
-  "name": "health-tracker-webapp",
+  "name": "health-tracker-root",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "dev": "concurrently --names \"API,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch src/index.ts",
-    "dev:client": "npm run dev --prefix client",
-    "build": "tsc && npm run build --prefix client",
-    "start": "node dist/index.js"
+    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix server && npm run build --prefix client",
+    "start": "npm start --prefix server"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.28.1",
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^25.3.0",
-    "concurrently": "^9.2.1",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "googleapis": "^171.4.0",
-    "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.2.2",
-    "zod": "^4.3.6"
+    "concurrently": "^9.2.1"
   }
 }
