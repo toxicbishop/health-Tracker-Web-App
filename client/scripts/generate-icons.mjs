@@ -86,3 +86,8 @@ for (const size of [192, 512]) {
   const path = `${publicDir}/pwa-${size}x${size}.png`;
   createWriteStream(path).end(png, () => console.log(`✓ Created ${path} (${png.length} bytes)`));
 }
+
+// Apple touch icon (180×180)
+const applePng = createPNG(180);
+const applePath = `${publicDir}/apple-touch-icon.png`;
+createWriteStream(applePath).end(applePng, () => console.log(`✓ Created ${applePath} (${applePng.length} bytes)`));
