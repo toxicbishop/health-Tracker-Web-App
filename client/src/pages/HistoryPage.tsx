@@ -162,14 +162,22 @@ export default function HistoryPage() {
 
       {/* Log list */}
       {isLoading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "60px 0", color: "var(--text-secondary)", gap: 12, alignItems: "center" }}>
-          <div className="spinner" style={{ borderTopColor: "var(--accent-blue)", borderColor: "rgba(59,130,246,0.2)" }} />
-          Loading logs…
+        <div className="log-list">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton-list-item">
+              <div className="skeleton" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: "var(--radius-sm)" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div className="skeleton skeleton-text" style={{ width: "30%" }} />
+                <div className="skeleton skeleton-text" style={{ width: "50%" }} />
+              </div>
+              <div className="skeleton skeleton-heading" style={{ width: 60 }} />
+            </div>
+          ))}
         </div>
       ) : pagedLogs.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <span className="empty-icon">🔍</span>
+              <Search size={32} style={{ opacity: 0.3, marginBottom: 4 }} />
             <div className="empty-title">{search ? "No matching logs found" : "No logs yet"}</div>
             <p className="empty-desc">
               {search ? `No logs match "${search}".` : "Start logging your health metrics to see them here."}
@@ -191,7 +199,7 @@ export default function HistoryPage() {
                   className="log-item"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.04, 0.4) }}>
+                  transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.25, ease: [0.4, 0, 0.2, 1] }}>
                   <div className={`log-item-icon stat-icon ${typeStyle.colorClass}`}>{typeStyle.icon}</div>
                   <div className="log-item-body">
                     <div className="log-item-type">

@@ -195,9 +195,23 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="page-loader">
-        <div className="spinner" />
-        <span>Loading your health data…</span>
+      <div>
+        <div className="page-header">
+          <div className="skeleton skeleton-heading" style={{ width: 280, marginBottom: 10 }} />
+          <div className="skeleton skeleton-text" style={{ width: 200 }} />
+        </div>
+        <div className="skeleton-stat-grid">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton-stat-card">
+              <div className="skeleton" style={{ width: 42, height: 42, borderRadius: "var(--radius-md)" }} />
+              <div className="skeleton skeleton-heading" style={{ width: "55%" }} />
+              <div className="skeleton skeleton-text" style={{ width: "40%" }} />
+            </div>
+          ))}
+        </div>
+        <div className="card">
+          <div className="skeleton skeleton-chart" />
+        </div>
       </div>
     );
   }
@@ -207,7 +221,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
         <div>
-          <h1 className="page-title">{greeting()}, {user?.username ?? "there"} 👋</h1>
+          <h1 className="page-title">{greeting()}, {user?.username ?? "there"}</h1>
           <p className="page-subtitle">Here's an overview of your health metrics.</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

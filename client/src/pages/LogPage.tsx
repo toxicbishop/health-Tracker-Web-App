@@ -270,14 +270,10 @@ export default function LogPage() {
               type="submit"
               className="btn btn-primary btn-full btn-lg"
               disabled={addLog.isPending}
+              data-loading={addLog.isPending ? "true" : undefined}
               data-testid="submit-log-btn">
-              {addLog.isPending ? (
-                <>
-                  <span className="spinner" /> Saving…
-                </>
-              ) : (
-                "Save Health Log"
-              )}
+              <span className="btn-spinner" />
+              <span>{addLog.isPending ? "Saving…" : "Save Health Log"}</span>
             </button>
           </form>
         </div>
