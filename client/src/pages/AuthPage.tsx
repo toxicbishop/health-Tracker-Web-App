@@ -74,6 +74,7 @@ export default function AuthPage() {
             className="auth-v2-nav-back"
             onClick={() => switchMode("login")}>
             <ArrowLeft size={18} />
+            <span>Back to sign in</span>
           </button>
         )}
         <span className="auth-v2-nav-title">{NAV_TITLE[mode]}</span>
@@ -233,7 +234,7 @@ export default function AuthPage() {
                     id="switch-to-register"
                     className="auth-v2-submit-outline"
                     onClick={() => switchMode("register")}>
-                    Create an account
+                    Sign up
                   </button>
                 )}
                 {mode === "register" && (
