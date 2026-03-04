@@ -4,7 +4,7 @@ A Full-stack wellness tracking application featuring a React/Vite interactive da
 
 ---
 
-## 🚀 Project Phases Completed
+## Project Phases Completed
 
 ### Phase 1: Project Skeleton
 
