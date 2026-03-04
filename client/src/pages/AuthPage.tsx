@@ -28,8 +28,12 @@ export default function AuthPage({ initialMode = "login" }: AuthPageProps) {
       } else {
         await register(username, password);
       }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
