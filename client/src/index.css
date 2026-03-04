@@ -1047,3 +1047,361 @@ textarea {
     font-size: 22px;
   }
 }
+
+/* ── Light Theme ──────────────────────────────────────
+   Applied via  <html data-theme="light">
+──────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base: #f0f4f8;
+  --bg-surface: #ffffff;
+  --bg-card: #f8fafc;
+  --bg-card-hover: #eef2f7;
+  --border: rgba(59, 130, 246, 0.15);
+  --border-bright: rgba(59, 130, 246, 0.35);
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --glow-blue: 0 0 20px rgba(59, 130, 246, 0.2);
+  --glow-cyan: 0 0 20px rgba(6, 182, 212, 0.18);
+  --glow-emerald: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+[data-theme="light"] body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .sidebar {
+  background: var(--bg-surface);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .auth-page {
+  background: var(--bg-base);
+}
+
+[data-theme="light"] .auth-bg-glow-1 {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+}
+
+[data-theme="light"] .auth-bg-glow-2 {
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+}
+
+[data-theme="light"] .auth-card {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .stat-card {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .card {
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-select,
+[data-theme="light"] .form-textarea {
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .form-input::placeholder,
+[data-theme="light"] .form-select::placeholder,
+[data-theme="light"] .form-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .log-item {
+  background: var(--bg-surface);
+}
+
+[data-theme="light"] .log-item:hover {
+  background: var(--bg-card-hover);
+}
+
+[data-theme="light"] .tabs {
+  background: var(--bg-card);
+}
+
+[data-theme="light"] .user-chip {
+  background: var(--bg-card);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+/* ── Theme Toggle Button ───────────────────────────── */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 7px 9px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: all var(--transition);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* ── Offline Banner ────────────────────────────────── */
+.offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(135deg, #b45309, #92400e);
+  color: #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+
+/* ── Bottom Navigation (Mobile) ────────────────────── */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all var(--transition);
+  min-width: 64px;
+}
+
+.bottom-nav-item:hover,
+.bottom-nav-item.active {
+  color: var(--accent-blue);
+}
+
+.bottom-nav-item.active .bottom-nav-label {
+  color: var(--accent-blue);
+}
+
+.bottom-nav-label {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ── Date Range Selector ───────────────────────────── */
+.date-range-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.date-range-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.2px;
+}
+
+.date-range-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.date-range-btn.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.18), rgba(6,182,212,0.12));
+  color: var(--accent-blue);
+  border-color: rgba(59,130,246,0.4);
+}
+
+.date-range-custom {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.date-range-custom input[type="date"] {
+  padding: 6px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition);
+  cursor: pointer;
+}
+
+.date-range-custom input[type="date"]:focus {
+  border-color: var(--accent-blue);
+}
+
+/* ── Analytics Summary Cards ───────────────────────── */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.analytics-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  transition: all var(--transition);
+}
+
+.analytics-card:hover {
+  border-color: var(--border-bright);
+}
+
+.analytics-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.analytics-card-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.analytics-card-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+/* ── Export Toolbar ────────────────────────────────── */
+.export-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Print / PDF Export ────────────────────────────── */
+@media print {
+  .sidebar,
+  .bottom-nav,
+  .offline-banner,
+  .btn,
+  .date-range-bar,
+  .export-bar,
+  .page-header .btn,
+  .tabs,
+  nav {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .card,
+  .stat-card,
+  .log-item {
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .stat-value,
+  .log-item-number,
+  .card-title,
+  .page-title {
+    color: #000 !important;
+  }
+
+  .stat-label,
+  .log-item-meta,
+  .card-subtitle {
+    color: #555 !important;
+  }
+}
+
+/* ── Mobile Responsive (Bottom Nav + Padding) ──────── */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+  }
+
+  .main-content {
+    padding-bottom: 80px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Stagger Animation ─────────────────────────────── */
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-item:nth-child(1) { animation: staggerIn 0.3s ease 0s both; }
+.stagger-item:nth-child(2) { animation: staggerIn 0.3s ease 0.05s both; }
+.stagger-item:nth-child(3) { animation: staggerIn 0.3s ease 0.1s both; }
+.stagger-item:nth-child(4) { animation: staggerIn 0.3s ease 0.15s both; }
+.stagger-item:nth-child(5) { animation: staggerIn 0.3s ease 0.2s both; }
+.stagger-item:nth-child(6) { animation: staggerIn 0.3s ease 0.25s both; }
+

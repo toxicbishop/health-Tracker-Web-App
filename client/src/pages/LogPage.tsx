@@ -1,13 +1,8 @@
-import React, { useState } from "react";
-import { healthApi } from "../api/health";
-import {
-  Scale,
-  Activity,
-  HeartPulse,
-  CheckCircle,
-  AlertCircle,
-  StickyNote,
-} from "lucide-react";
+﻿import React, { useState } from "react";
+import { useAddHealthLog } from "../hooks/useHealthData";
+import { Scale, Activity, HeartPulse, StickyNote } from "lucide-react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 type LogType = "WEIGHT" | "BLOOD_PRESSURE" | "HEART_RATE";
 
@@ -19,27 +14,14 @@ interface TypeOption {
 }
 
 const TYPE_OPTIONS: TypeOption[] = [
-  {
-    value: "WEIGHT",
-    label: "Weight",
-    icon: <Scale size={20} />,
-    color: "blue",
-  },
-  {
-    value: "BLOOD_PRESSURE",
-    label: "Blood Pressure",
-    icon: <Activity size={20} />,
-    color: "cyan",
-  },
-  {
-    value: "HEART_RATE",
-    label: "Heart Rate",
-    icon: <HeartPulse size={20} />,
-    color: "em",
-  },
+  { value: "WEIGHT", label: "Weight", icon: <Scale size={20} />, color: "blue" },
+  { value: "BLOOD_PRESSURE", label: "Blood Pressure", icon: <Activity size={20} />, color: "cyan" },
+  { value: "HEART_RATE", label: "Heart Rate", icon: <HeartPulse size={20} />, color: "em" },
 ];
 
 export default function LogPage() {
+  const addLog = useAddHealthLog();
+
   const [type, setType] = useState<LogType>("WEIGHT");
   const [weight, setWeight] = useState("");
   const [unit, setUnit] = useState<"kg" | "lbs">("kg");
@@ -47,12 +29,7 @@ export default function LogPage() {
   const [diastolic, setDiastolic] = useState("");
   const [bpm, setBpm] = useState("");
   const [notes, setNotes] = useState("");
-  const [timestamp, setTimestamp] = useState(() =>
-    new Date().toISOString().slice(0, 16),
-  );
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
+  const [timestamp, setTimestamp] = useState(() => new Date().toISOString().slice(0, 16));
 
   const reset = () => {
     setWeight("");
@@ -63,100 +40,89 @@ export default function LogPage() {
     setTimestamp(new Date().toISOString().slice(0, 16));
   };
 
+  const validate = (): string | null => {
+    if (type === "WEIGHT") {
+      if (!weight) return "Please enter your weight.";
+      const w = parseFloat(weight);
+      if (isNaN(w) || w <= 0) return "Weight must be a positive number.";
+      if (w > 1000) return "Weight value is unrealistically high.";
+    } else if (type === "BLOOD_PRESSURE") {
+      if (!systolic || !diastolic) return "Please enter both systolic and diastolic values.";
+      const sys = parseInt(systolic);
+      const dia = parseInt(diastolic);
+      if (sys < 70 || sys > 300) return "Systolic must be between 70 and 300 mmHg.";
+      if (dia < 40 || dia > 150) return "Diastolic must be between 40 and 150 mmHg.";
+      if (sys <= dia) return "Systolic pressure must be greater than diastolic.";
+    } else if (type === "HEART_RATE") {
+      if (!bpm) return "Please enter your heart rate.";
+      const b = parseInt(bpm);
+      if (isNaN(b) || b <= 0) return "Heart rate must be a positive number.";
+      if (b > 300) return "Heart rate value is unrealistically high.";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
-    setLoading(true);
+
+    const validationError = validate();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    const base: Record<string, unknown> = {
+      timestamp: new Date(timestamp).toISOString(),
+      notes: notes.trim(),
+    };
+
+    let logPayload: Record<string, unknown>;
+
+    if (type === "WEIGHT") {
+      logPayload = { ...base, type: "WEIGHT", weight: parseFloat(weight), unit };
+    } else if (type === "BLOOD_PRESSURE") {
+      logPayload = { ...base, type: "BLOOD_PRESSURE", systolic: parseInt(systolic), diastolic: parseInt(diastolic) };
+    } else {
+      logPayload = { ...base, type: "HEART_RATE", bpm: parseInt(bpm) };
+    }
 
     try {
-      const base: Record<string, unknown> = {
-        timestamp: new Date(timestamp).toISOString(),
-        notes,
-      };
-
-      if (type === "WEIGHT") {
-        if (!weight) throw new Error("Please enter your weight.");
-        await healthApi.addLog({
-          ...base,
-          type: "WEIGHT",
-          weight: parseFloat(weight),
-          unit,
-        });
-      } else if (type === "BLOOD_PRESSURE") {
-        if (!systolic || !diastolic)
-          throw new Error("Please enter both systolic and diastolic values.");
-        await healthApi.addLog({
-          ...base,
-          type: "BLOOD_PRESSURE",
-          systolic: parseInt(systolic),
-          diastolic: parseInt(diastolic),
-        });
-      } else if (type === "HEART_RATE") {
-        if (!bpm) throw new Error("Please enter your heart rate.");
-        await healthApi.addLog({
-          ...base,
-          type: "HEART_RATE",
-          bpm: parseInt(bpm),
-        });
-      }
-
-      setSuccess(true);
+      await addLog.mutateAsync(logPayload);
       reset();
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save log. Please try again.",
-      );
-    } finally {
-      setLoading(false);
+    } catch {
+      toast.error("Failed to save log. Please try again.");
     }
   };
 
   const selectedType = TYPE_OPTIONS.find((t) => t.value === type)!;
 
   return (
-    <div className="fade-in-up">
+    <div>
       <div className="page-header">
         <h1 className="page-title">Log Health Data</h1>
         <p className="page-subtitle">Record a new health metric entry.</p>
       </div>
 
-      <div style={{ maxWidth: 560 }}>
+      <motion.div
+        style={{ maxWidth: 560 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}>
+
         {/* Type selector */}
         <div className="card" style={{ marginBottom: 20 }}>
-          <div className="card-title" style={{ marginBottom: 16 }}>
-            Metric Type
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3,1fr)",
-              gap: 12,
-            }}>
+          <div className="card-title" style={{ marginBottom: 16 }}>Metric Type</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
             {TYPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 id={`type-btn-${opt.value.toLowerCase()}`}
                 type="button"
-                onClick={() => {
-                  setType(opt.value);
-                  setError("");
-                  setSuccess(false);
-                }}
+                onClick={() => { setType(opt.value); }}
                 className={`btn ${type === opt.value ? "btn-primary" : "btn-secondary"}`}
-                style={{
-                  flexDirection: "column",
-                  gap: 8,
-                  padding: "16px 8px",
-                  background:
-                    type === opt.value ? undefined : "var(--bg-surface)",
-                }}>
+                style={{ flexDirection: "column", gap: 8, padding: "16px 8px", background: type === opt.value ? undefined : "var(--bg-surface)" }}>
                 {opt.icon}
-                <span style={{ fontSize: 12, fontWeight: 600 }}>
-                  {opt.label}
-                </span>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{opt.label}</span>
               </button>
             ))}
           </div>
@@ -166,47 +132,22 @@ export default function LogPage() {
         <div className="card">
           <div className="card-header" style={{ marginBottom: 20 }}>
             <div>
-              <div
-                className="card-title"
-                style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   className={`stat-icon ${selectedType.color}`}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    fontSize: 15,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    borderRadius: 8,
-                  }}>
+                  style={{ width: 32, height: 32, fontSize: 15, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 8 }}>
                   {selectedType.icon}
                 </span>
                 {selectedType.label}
               </div>
-              <div className="card-subtitle">
-                Enter the measurement details below
-              </div>
+              <div className="card-subtitle">Enter the measurement details below</div>
             </div>
           </div>
 
-          {success && (
-            <div className="alert alert-success fade-in">
-              <CheckCircle size={16} /> Log saved successfully! ✓
-            </div>
-          )}
-          {error && (
-            <div className="alert alert-error fade-in">
-              <AlertCircle size={16} /> {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} data-testid="log-form">
             {/* Timestamp */}
             <div className="form-group">
-              <label className="form-label" htmlFor="log-timestamp">
-                Date & Time
-              </label>
+              <label className="form-label" htmlFor="log-timestamp">Date & Time</label>
               <input
                 id="log-timestamp"
                 className="form-input"
@@ -217,13 +158,11 @@ export default function LogPage() {
               />
             </div>
 
-            {/* Weight fields */}
+            {/* Weight */}
             {type === "WEIGHT" && (
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="log-weight">
-                    Weight
-                  </label>
+                  <label className="form-label" htmlFor="log-weight">Weight</label>
                   <input
                     id="log-weight"
                     className="form-input"
@@ -233,12 +172,11 @@ export default function LogPage() {
                     min="1"
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
+                    data-testid="weight-input"
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="log-unit">
-                    Unit
-                  </label>
+                  <label className="form-label" htmlFor="log-unit">Unit</label>
                   <select
                     id="log-unit"
                     className="form-select"
@@ -251,13 +189,11 @@ export default function LogPage() {
               </div>
             )}
 
-            {/* Blood Pressure fields */}
+            {/* Blood Pressure */}
             {type === "BLOOD_PRESSURE" && (
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="log-systolic">
-                    Systolic (mmHg)
-                  </label>
+                  <label className="form-label" htmlFor="log-systolic">Systolic (mmHg)</label>
                   <input
                     id="log-systolic"
                     className="form-input"
@@ -267,12 +203,11 @@ export default function LogPage() {
                     max="250"
                     value={systolic}
                     onChange={(e) => setSystolic(e.target.value)}
+                    data-testid="systolic-input"
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="log-diastolic">
-                    Diastolic (mmHg)
-                  </label>
+                  <label className="form-label" htmlFor="log-diastolic">Diastolic (mmHg)</label>
                   <input
                     id="log-diastolic"
                     className="form-input"
@@ -282,17 +217,16 @@ export default function LogPage() {
                     max="150"
                     value={diastolic}
                     onChange={(e) => setDiastolic(e.target.value)}
+                    data-testid="diastolic-input"
                   />
                 </div>
               </div>
             )}
 
-            {/* Heart Rate fields */}
+            {/* Heart Rate */}
             {type === "HEART_RATE" && (
               <div className="form-group">
-                <label className="form-label" htmlFor="log-bpm">
-                  Heart Rate (bpm)
-                </label>
+                <label className="form-label" htmlFor="log-bpm">Heart Rate (bpm)</label>
                 <input
                   id="log-bpm"
                   className="form-input"
@@ -302,6 +236,7 @@ export default function LogPage() {
                   max="250"
                   value={bpm}
                   onChange={(e) => setBpm(e.target.value)}
+                  data-testid="bpm-input"
                 />
               </div>
             )}
@@ -319,17 +254,14 @@ export default function LogPage() {
                 placeholder="e.g. After morning workout, felt slightly dehydrated…"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                data-testid="notes-input"
               />
             </div>
 
-            {/* BP reference */}
             {type === "BLOOD_PRESSURE" && (
               <div className="alert alert-info" style={{ marginBottom: 18 }}>
                 <Activity size={16} />
-                <span>
-                  Normal BP is approximately <strong>120/80 mmHg</strong>.
-                  Always consult a healthcare professional.
-                </span>
+                <span>Normal BP is approximately <strong>120/80 mmHg</strong>. Always consult a healthcare professional.</span>
               </div>
             )}
 
@@ -337,8 +269,9 @@ export default function LogPage() {
               id="submit-log-btn"
               type="submit"
               className="btn btn-primary btn-full btn-lg"
-              disabled={loading}>
-              {loading ? (
+              disabled={addLog.isPending}
+              data-testid="submit-log-btn">
+              {addLog.isPending ? (
                 <>
                   <span className="spinner" /> Saving…
                 </>
@@ -348,7 +281,7 @@ export default function LogPage() {
             </button>
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

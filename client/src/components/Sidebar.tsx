@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -6,6 +7,8 @@ import {
   ClipboardList,
   LogOut,
   HeartPulse,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const navItems = [
@@ -16,6 +19,7 @@ const navItems = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <aside className="sidebar">
@@ -46,8 +50,23 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User */}
+      {/* Bottom: Theme Toggle + User */}
       <div className="sidebar-bottom">
+        {/* Theme Toggle */}
+        <div style={{ marginBottom: 12 }}>
+          <button
+            id="theme-toggle-btn"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            style={{ width: "100%", justifyContent: "flex-start", gap: 10 }}>
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            <span style={{ fontSize: 13, fontWeight: 500 }}>
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            </span>
+          </button>
+        </div>
+
         <div className="user-chip">
           <div className="user-avatar">
             {user?.username?.[0]?.toUpperCase() ?? "?"}
@@ -68,3 +87,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

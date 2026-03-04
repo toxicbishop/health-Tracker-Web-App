@@ -1,33 +1,15 @@
-import { useEffect, useState } from "react";
-import { healthApi } from "../api/health";
-import type {
-  HealthLog,
-  WeightLog,
-  BPLog,
-  HeartRateLog,
-} from "../types/health";
-import {
-  Scale,
-  Activity,
-  HeartPulse,
-  Search,
-  Filter,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
+﻿import { useState, useMemo } from "react";
+import { useHealthLogs } from "../hooks/useHealthData";
+import type { HealthLog, WeightLog, BPLog, HeartRateLog } from "../types/health";
+import { Scale, Activity, HeartPulse, Search, Filter, AlertCircle, RefreshCw, Download, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { format, parseISO } from "date-fns";
 
 type FilterType = "ALL" | "WEIGHT" | "BLOOD_PRESSURE" | "HEART_RATE";
 
 function formatDateTime(ts: string) {
-  const d = new Date(ts);
-  return d.toLocaleString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return format(parseISO(ts), "MMM d, yyyy, h:mm a");
 }
 
 function getLogDisplayValue(log: HealthLog): { primary: string; unit: string } {
@@ -45,44 +27,33 @@ function getLogDisplayValue(log: HealthLog): { primary: string; unit: string } {
   return { primary: "—", unit: "" };
 }
 
-interface TypeStyle {
-  icon: React.ReactNode;
-  colorClass: string;
-  badgeClass: string;
-  label: string;
+function getTypeStyle(type: string) {
+  switch (type) {
+    case "WEIGHT": return { icon: <Scale size={18} />, colorClass: "blue", badgeClass: "badge-blue", label: "Weight" };
+    case "BLOOD_PRESSURE": return { icon: <Activity size={18} />, colorClass: "cyan", badgeClass: "badge-cyan", label: "Blood Pressure" };
+    case "HEART_RATE": return { icon: <HeartPulse size={18} />, colorClass: "em", badgeClass: "badge-em", label: "Heart Rate" };
+    default: return { icon: <Activity size={18} />, colorClass: "violet", badgeClass: "badge-violet", label: type };
+  }
 }
 
-function getTypeStyle(type: string): TypeStyle {
-  switch (type) {
-    case "WEIGHT":
-      return {
-        icon: <Scale size={18} />,
-        colorClass: "blue",
-        badgeClass: "badge-blue",
-        label: "Weight",
-      };
-    case "BLOOD_PRESSURE":
-      return {
-        icon: <Activity size={18} />,
-        colorClass: "cyan",
-        badgeClass: "badge-cyan",
-        label: "Blood Pressure",
-      };
-    case "HEART_RATE":
-      return {
-        icon: <HeartPulse size={18} />,
-        colorClass: "em",
-        badgeClass: "badge-em",
-        label: "Heart Rate",
-      };
-    default:
-      return {
-        icon: <Activity size={18} />,
-        colorClass: "violet",
-        badgeClass: "badge-violet",
-        label: type,
-      };
-  }
+function exportCSV(logs: HealthLog[]) {
+  const rows = [["Date", "Type", "Value", "Unit", "Notes"]];
+  logs.forEach((log) => {
+    let value = "";
+    let unit = "";
+    if (log.type === "WEIGHT") { value = String((log as WeightLog).weight); unit = (log as WeightLog).unit; }
+    else if (log.type === "BLOOD_PRESSURE") { value = `${(log as BPLog).systolic}/${(log as BPLog).diastolic}`; unit = "mmHg"; }
+    else if (log.type === "HEART_RATE") { value = String((log as HeartRateLog).bpm); unit = "bpm"; }
+    rows.push([format(parseISO(log.timestamp), "yyyy-MM-dd HH:mm"), log.type, value, unit, log.notes ?? ""]);
+  });
+  const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "health-history.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
@@ -92,213 +63,169 @@ const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
   { value: "HEART_RATE", label: "Heart Rate" },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function HistoryPage() {
-  const [logs, setLogs] = useState<HealthLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: logs = [], isLoading, isError, error, refetch } = useHealthLogs();
   const [filter, setFilter] = useState<FilterType>("ALL");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const fetchLogs = async (type?: string) => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await healthApi.getLogs(type === "ALL" ? undefined : type);
-      const sorted = [...data].sort(
-        (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  const sortedLogs = useMemo(() =>
+    [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [logs]
+  );
+
+  const filteredLogs = useMemo(() => {
+    return sortedLogs.filter((log) => {
+      if (filter !== "ALL" && log.type !== filter) return false;
+      if (!search) return true;
+      const { primary } = getLogDisplayValue(log);
+      return (
+        log.type.toLowerCase().includes(search.toLowerCase()) ||
+        primary.includes(search) ||
+        (log.notes ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        formatDateTime(log.timestamp).toLowerCase().includes(search.toLowerCase())
       );
-      setLogs(sorted);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load logs");
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+  }, [sortedLogs, filter, search]);
 
-  useEffect(() => {
-    fetchLogs(filter === "ALL" ? undefined : filter);
-  }, [filter]);
+  const totalPages = Math.ceil(filteredLogs.length / PAGE_SIZE);
+  const pagedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const filteredLogs = logs.filter((log) => {
-    if (!search) return true;
-    const value = getLogDisplayValue(log).primary;
-    return (
-      log.type.toLowerCase().includes(search.toLowerCase()) ||
-      value.includes(search) ||
-      (log.notes ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      formatDateTime(log.timestamp).toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  // Reset page when filter/search changes
+  const handleFilter = (f: FilterType) => { setFilter(f); setPage(1); };
+  const handleSearch = (s: string) => { setSearch(s); setPage(1); };
 
   return (
-    <div className="fade-in-up">
+    <div>
       {/* Header */}
-      <div
-        className="page-header"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: 16,
-        }}>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
         <div>
           <h1 className="page-title">Health History</h1>
-          <p className="page-subtitle">
-            All your logged health metrics in one place.
-          </p>
+          <p className="page-subtitle">All your logged health metrics in one place.</p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            id="history-refresh-btn"
-            onClick={() => fetchLogs(filter === "ALL" ? undefined : filter)}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="export-bar">
+            <button className="btn btn-secondary btn-sm" id="history-export-csv" onClick={() => exportCSV(filteredLogs)} title="Export as CSV">
+              <Download size={13} /> CSV
+            </button>
+            <button className="btn btn-secondary btn-sm" id="history-export-pdf" onClick={() => window.print()} title="Print / Save as PDF">
+              <Printer size={13} /> PDF
+            </button>
+          </div>
+          <button className="btn btn-secondary btn-sm" id="history-refresh-btn" onClick={() => refetch()}>
             <RefreshCw size={14} /> Refresh
           </button>
-          <Link
-            to="/log"
-            className="btn btn-primary btn-sm"
-            id="history-add-btn">
-            + Log New
-          </Link>
+          <Link to="/log" className="btn btn-primary btn-sm" id="history-add-btn">+ Log New</Link>
         </div>
       </div>
 
-      {error && (
+      {isError && (
         <div className="alert alert-error" style={{ marginBottom: 20 }}>
-          <AlertCircle size={16} /> {error}
+          <AlertCircle size={16} /> {error instanceof Error ? error.message : "Failed to load logs"}
         </div>
       )}
 
-      {/* Filter & Search bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 14,
-          marginBottom: 24,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}>
+      {/* Filter & Search */}
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
         <div className="tabs" id="filter-tabs">
           {FILTER_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               id={`filter-${opt.value.toLowerCase()}`}
               className={`tab-btn ${filter === opt.value ? "active" : ""}`}
-              onClick={() => setFilter(opt.value)}>
+              onClick={() => handleFilter(opt.value)}>
               {opt.label}
             </button>
           ))}
         </div>
 
-        <div
-          className="form-input-with-icon"
-          style={{ flex: 1, minWidth: 200 }}>
-          <span className="form-input-icon">
-            <Search size={15} />
-          </span>
+        <div className="form-input-with-icon" style={{ flex: 1, minWidth: 200 }}>
+          <span className="form-input-icon"><Search size={15} /></span>
           <input
             id="history-search"
             className="form-input"
             type="text"
             placeholder="Search logs…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             style={{ paddingLeft: 38 }}
           />
         </div>
 
-        <div
-          className="glass-pill"
-          style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="glass-pill" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Filter size={12} />
           {filteredLogs.length} result{filteredLogs.length !== 1 ? "s" : ""}
         </div>
       </div>
 
       {/* Log list */}
-      {loading ? (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            padding: "60px 0",
-            color: "var(--text-secondary)",
-            gap: 12,
-            alignItems: "center",
-          }}>
-          <div
-            className="spinner"
-            style={{
-              borderTopColor: "var(--accent-blue)",
-              borderColor: "rgba(59,130,246,0.2)",
-            }}
-          />
+      {isLoading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "60px 0", color: "var(--text-secondary)", gap: 12, alignItems: "center" }}>
+          <div className="spinner" style={{ borderTopColor: "var(--accent-blue)", borderColor: "rgba(59,130,246,0.2)" }} />
           Loading logs…
         </div>
-      ) : filteredLogs.length === 0 ? (
+      ) : pagedLogs.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <span className="empty-icon">🔍</span>
-            <div className="empty-title">
-              {search ? "No matching logs found" : "No logs yet"}
-            </div>
+            <div className="empty-title">{search ? "No matching logs found" : "No logs yet"}</div>
             <p className="empty-desc">
-              {search
-                ? `No logs match "${search}". Try a different search term.`
-                : "Start logging your health metrics to see them here."}
+              {search ? `No logs match "${search}".` : "Start logging your health metrics to see them here."}
             </p>
             {!search && (
-              <Link
-                to="/log"
-                className="btn btn-primary btn-sm"
-                style={{ marginTop: 8 }}>
-                + Add First Log
-              </Link>
+              <Link to="/log" className="btn btn-primary btn-sm" style={{ marginTop: 8 }}>+ Add First Log</Link>
             )}
           </div>
         </div>
       ) : (
-        <div className="log-list">
-          {filteredLogs.map((log) => {
-            const typeStyle = getTypeStyle(log.type);
-            const { primary, unit } = getLogDisplayValue(log);
-            return (
-              <div key={log.id} className="log-item fade-in">
-                <div
-                  className={`log-item-icon stat-icon ${typeStyle.colorClass}`}>
-                  {typeStyle.icon}
-                </div>
-                <div className="log-item-body">
-                  <div className="log-item-type">
-                    <span className={`badge ${typeStyle.badgeClass}`}>
-                      {typeStyle.label}
-                    </span>
-                  </div>
-                  <div className="log-item-meta">
-                    {formatDateTime(log.timestamp)}
-                  </div>
-                  {log.notes && (
-                    <div
-                      className="log-item-meta"
-                      style={{
-                        color: "var(--text-muted)",
-                        fontStyle: "italic",
-                        marginTop: 2,
-                      }}>
-                      "{log.notes}"
+        <>
+          <div className="log-list">
+            {pagedLogs.map((log, i) => {
+              const typeStyle = getTypeStyle(log.type);
+              const { primary, unit } = getLogDisplayValue(log);
+              return (
+                <motion.div
+                  key={log.id}
+                  className="log-item"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(i * 0.04, 0.4) }}>
+                  <div className={`log-item-icon stat-icon ${typeStyle.colorClass}`}>{typeStyle.icon}</div>
+                  <div className="log-item-body">
+                    <div className="log-item-type">
+                      <span className={`badge ${typeStyle.badgeClass}`}>{typeStyle.label}</span>
                     </div>
-                  )}
-                </div>
-                <div className="log-item-value">
-                  <div className="log-item-number">{primary}</div>
-                  <div className="log-item-unit">{unit}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    <div className="log-item-meta">{formatDateTime(log.timestamp)}</div>
+                    {log.notes && (
+                      <div className="log-item-meta" style={{ color: "var(--text-muted)", fontStyle: "italic", marginTop: 2 }}>
+                        "{log.notes}"
+                      </div>
+                    )}
+                  </div>
+                  <div className="log-item-value">
+                    <div className="log-item-number">{primary}</div>
+                    <div className="log-item-unit">{unit}</div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 24, alignItems: "center" }}>
+              <button className="btn btn-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                ← Prev
+              </button>
+              <span className="glass-pill">Page {page} of {totalPages}</span>
+              <button className="btn btn-secondary btn-sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                Next →
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
