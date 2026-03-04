@@ -1,6 +1,6 @@
 # Health Tracker WebApp
 
-A Back-end API wellness tracking application featuring a Node/Express backend that saves structured health data directly to Google Sheets.
+A Full-stack wellness tracking application featuring a React/Vite interactive dashboard and a Node/Express backend that securely saves structured health data directly to Google Sheets.
 
 ---
 
@@ -40,3 +40,10 @@ A Back-end API wellness tracking application featuring a Node/Express backend th
 - Configured a Postman `LocalDev` Environment to manage URLs (`{{base_url}}`).
 - Successfully constructed and saved a `POST` Request Collection for easy, repeatable testing against `http://localhost:3000/health-log`.
 - Triggered sample JSON payloads verifying the entire stack: Request → Validation → Storage (Google Sheets) → `201 Created` Response.
+
+### Phase 6: Frontend & Fullstack Restructure
+
+- **Monorepo Setup**: Restructured the project into a comprehensive monorepo layout hosting both the `client/` (React/Vite) and `server/` (Node/Express).
+- **Concurrent Launcher**: Configured a new root workspace to run both backend and frontend servers simultaneously using `npm run dev`.
+- **Interactive UI**: Developed a custom, animated dashboard design featuring dynamic log filtering, history lists, and real-time form validations.
+- **Data Visualization**: Integrated `recharts` to render informative, real-time trend charts for Weight, Blood Pressure, and Heart Rate.
