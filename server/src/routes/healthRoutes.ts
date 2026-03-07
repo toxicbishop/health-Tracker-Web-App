@@ -9,6 +9,7 @@ import {
 import { googleSheetsService } from "../services/googleSheetsService";
 
 import { authenticateJWT } from "../middleware/authMiddleware";
+import { apiLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const router = Router();
  */
 router.post(
   "/",
+  apiLimiter,
   authenticateJWT,
   validate(HealthLogSchema as any),
   async (req: Request, res: Response, next: NextFunction) => {
@@ -53,6 +55,7 @@ router.post(
  */
 router.get(
   "/",
+  apiLimiter,
   authenticateJWT,
   validate(HealthQuerySchema as any, "query"),
   async (req: Request, res: Response) => {

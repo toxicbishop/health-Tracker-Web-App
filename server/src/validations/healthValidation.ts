@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ParameterType } from "../types/health";
 
-// Helper to strip HTML tags for basic sanitization
-const stripHtml = (val: string) => val.replace(/<[^>]*>?/gm, "");
+// Helper to escape HTML tags for basic sanitization
+const stripHtml = (val: string) =>
+  val.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const BaseLogSchema = z.object({
   timestamp: z.string().datetime({ message: "Invalid ISO timestamp" }),

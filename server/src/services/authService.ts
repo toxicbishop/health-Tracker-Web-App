@@ -10,7 +10,7 @@ export class AuthService {
     password: string,
   ): Promise<{ userId: string }> {
     // Check if user already exists
-    const existingUser = await User.findOne({ username });
+    const existingUser = await User.findOne({ username: String(username) });
     if (existingUser) {
       throw new Error("Username already exists");
     }
@@ -32,7 +32,7 @@ export class AuthService {
     username: string,
     password: string,
   ): Promise<{ token: string; userId: string }> {
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username: String(username) });
     if (!user) {
       throw new Error("Invalid username or password");
     }

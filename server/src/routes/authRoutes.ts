@@ -3,11 +3,13 @@ import { authService } from "../services/authService";
 import { validate } from "../middleware/validate";
 import { RegisterSchema, LoginSchema } from "../validations/authValidation";
 import { authenticateJWT } from "../middleware/authMiddleware";
+import { authLimiter } from "../middleware/rateLimiter";
 
 const router = Router();
 
 router.post(
   "/register",
+  authLimiter,
   validate(RegisterSchema as any),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -26,6 +28,7 @@ router.post(
 
 router.post(
   "/login",
+  authLimiter,
   validate(LoginSchema as any),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -44,6 +47,7 @@ router.post(
 
 router.get(
   "/me",
+  authLimiter,
   authenticateJWT,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
