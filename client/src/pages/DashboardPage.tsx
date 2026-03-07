@@ -1,271 +1,422 @@
-﻿import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import { useHealthLogs, useAddHealthLog } from "../hooks/useHealthData";
-import type { WeightLog, BPLog } from "../types/health";
+import type { WeightLog, BPLog, HeartRateLog } from "../types/health";
+import { format, parseISO, subDays, isAfter } from "date-fns";
+import { toast } from "sonner";
 
+// ── VITAL Logo ──────────────────────────────────────────────────────────────
+function VitalLogo() {
+  return (
+    <svg
+      width="130"
+      height="36"
+      viewBox="0 0 280 78"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M8 12 L28 66 L48 12"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M4 39 L20 39 L28 18 L36 60 L44 39 L54 39"
+        stroke="#888"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <line
+        x1="62"
+        y1="12"
+        x2="62"
+        y2="66"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="75"
+        y1="12"
+        x2="105"
+        y2="12"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+      />
+      <line
+        x1="90"
+        y1="12"
+        x2="90"
+        y2="66"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M120 66 L140 12 L160 66"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <line
+        x1="127"
+        y1="44"
+        x2="153"
+        y2="44"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M174 12 L174 66 L204 66"
+        stroke="#111"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+// ── Weekly Sparkline chart ──────────────────────────────────────────────────
+function WeeklyChart({ points }: { points: number[] }) {
+  if (points.length < 2) {
+    return (
+      <div className="empty-state" style={{ padding: "1rem 0" }}>
+        <p className="empty-desc">Not enough data for chart yet.</p>
+      </div>
+    );
+  }
+  const W = 320,
+    H = 110,
+    PAD = 8;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const xs = points.map(
+    (_, i) => PAD + (i / (points.length - 1)) * (W - PAD * 2),
+  );
+  const ys = points.map((v) => H - PAD - ((v - min) / range) * (H - PAD * 2));
+  const d = xs
+    .map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`)
+    .join(" ");
+  return (
+    <div className="weekly-chart-wrap">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height="100%"
+        preserveAspectRatio="none">
+        {/* Grid lines */}
+        {[0, 1, 2, 3, 4].map((n) => (
+          <line
+            key={n}
+            x1={PAD}
+            y1={PAD + (n / 4) * (H - PAD * 2)}
+            x2={W - PAD}
+            y2={PAD + (n / 4) * (H - PAD * 2)}
+            stroke="#cdc9b8"
+            strokeWidth="0.8"
+          />
+        ))}
+        {/* Axis */}
+        <line
+          x1={PAD}
+          y1={PAD}
+          x2={PAD}
+          y2={H - PAD}
+          stroke="#0d0c0a"
+          strokeWidth="1.5"
+        />
+        <line
+          x1={PAD}
+          y1={H - PAD}
+          x2={W - PAD}
+          y2={H - PAD}
+          stroke="#0d0c0a"
+          strokeWidth="1.5"
+        />
+        {/* Line */}
+        <path
+          d={d}
+          fill="none"
+          stroke="#0d0c0a"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Dots */}
+        {xs.map((x, i) => (
+          <circle key={i} cx={x} cy={ys[i]} r="4" fill="#0d0c0a" />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { data: logs = [] } = useHealthLogs();
+  const { data: logs = [], isLoading } = useHealthLogs();
   const { mutateAsync: addLog } = useAddHealthLog();
 
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
-  const [weightInput, setWeightInput] = useState("7");
+  const [weightInput, setWeightInput] = useState("");
+  const [bpLoading, setBpLoading] = useState(false);
+  const [wtLoading, setWtLoading] = useState(false);
 
-  const weightLogs = logs.filter((l) => l.type === "WEIGHT") as WeightLog[];
-  const bpLogs = logs.filter((l) => l.type === "BLOOD_PRESSURE") as BPLog[];
+  const weightLogs = useMemo(
+    () => logs.filter((l) => l.type === "WEIGHT") as WeightLog[],
+    [logs],
+  );
+  const bpLogs = useMemo(
+    () => logs.filter((l) => l.type === "BLOOD_PRESSURE") as BPLog[],
+    [logs],
+  );
+  const hrLogs = useMemo(
+    () => logs.filter((l) => l.type === "HEART_RATE") as HeartRateLog[],
+    [logs],
+  );
 
-  const latestWeight = weightLogs.length
-    ? weightLogs[weightLogs.length - 1].weight
-    : 72.5;
-  const latestSystolic = bpLogs.length
-    ? bpLogs[bpLogs.length - 1].systolic
-    : 120;
-  const latestDiastolic = bpLogs.length
-    ? bpLogs[bpLogs.length - 1].diastolic
-    : 80;
+  const latestBP = bpLogs[bpLogs.length - 1];
+  const latestWeight = weightLogs[weightLogs.length - 1];
+  const latestHR = hrLogs[hrLogs.length - 1];
+
+  // Weekly sparkline – prefer weight, fall back to BP systolic, then HR
+  const weekAgo = subDays(new Date(), 7);
+  const weeklyPoints = useMemo(() => {
+    if (weightLogs.length >= 2) {
+      return weightLogs
+        .filter((l) => isAfter(parseISO(l.timestamp), weekAgo))
+        .map((l) => l.weight);
+    }
+    if (bpLogs.length >= 2) {
+      return bpLogs
+        .filter((l) => isAfter(parseISO(l.timestamp), weekAgo))
+        .map((l) => l.systolic);
+    }
+    return hrLogs
+      .filter((l) => isAfter(parseISO(l.timestamp), weekAgo))
+      .map((l) => l.bpm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logs]);
 
   const handleAddBP = async () => {
-    if (!systolic || !diastolic) return;
-    await addLog({
-      type: "BLOOD_PRESSURE",
-      systolic: parseInt(systolic),
-      diastolic: parseInt(diastolic),
-      timestamp: new Date().toISOString(),
-      notes: "Quick Add via Dashboard",
-    });
-    setSystolic("");
-    setDiastolic("");
+    const sys = parseInt(systolic);
+    const dia = parseInt(diastolic);
+    if (!systolic || !diastolic || isNaN(sys) || isNaN(dia)) {
+      toast.error("Enter both values.");
+      return;
+    }
+    if (sys < 70 || sys > 250) {
+      toast.error("Systolic must be 70–250.");
+      return;
+    }
+    if (dia < 40 || dia > 150) {
+      toast.error("Diastolic must be 40–150.");
+      return;
+    }
+    setBpLoading(true);
+    try {
+      await addLog({
+        type: "BLOOD_PRESSURE",
+        systolic: sys,
+        diastolic: dia,
+        timestamp: new Date().toISOString(),
+        notes: "",
+      });
+      setSystolic("");
+      setDiastolic("");
+    } catch {
+      toast.error("Failed to save.");
+    } finally {
+      setBpLoading(false);
+    }
   };
 
   const handleAddWeight = async () => {
-    if (!weightInput) return;
-    await addLog({
-      type: "WEIGHT",
-      weight: parseFloat(weightInput),
-      unit: "kg",
-      timestamp: new Date().toISOString(),
-      notes: "Quick Add via Dashboard",
-    });
-    setWeightInput("");
+    const w = parseFloat(weightInput);
+    if (!weightInput || isNaN(w) || w <= 0) {
+      toast.error("Enter a valid weight.");
+      return;
+    }
+    setWtLoading(true);
+    try {
+      await addLog({
+        type: "WEIGHT",
+        weight: w,
+        unit: "kg",
+        timestamp: new Date().toISOString(),
+        notes: "",
+      });
+      setWeightInput("");
+    } catch {
+      toast.error("Failed to save.");
+    } finally {
+      setWtLoading(false);
+    }
   };
 
+  const todayStr = format(new Date(), "EEEE, MMMM d");
+
   return (
-    <div className="dash-container">
-      {/* Top Navbar with Logo */}
-      <nav className="top-nav" style={{ borderBottom: "1px solid #e0dfd5" }}>
-        <div className="wital-logo-container">
-          <svg
-            width="200"
-            height="50"
-            viewBox="0 0 240 60"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M40 10 L50 45 L60 25 L70 45 L80 10"
-              stroke="#000"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path d="M40 10 L45 27" stroke="#000" strokeWidth="5" />
-            <path
-              d="M50 45 L60 25 L70 45 L80 10"
-              stroke="#000"
-              strokeWidth="5"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M20 30 L45 30 L55 5 L65 55 L75 30 L100 30"
-              stroke="#000"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <rect x="95" y="10" width="5" height="35" fill="#000" />
-            <path
-              d="M125 10 L145 10 M135 10 L135 45"
-              stroke="#000"
-              strokeWidth="5"
-              strokeLinecap="round"
-            />
-            <path
-              d="M170 10 L155 45 M170 10 L185 45 M160 30 L180 30"
-              stroke="#000"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M205 10 L205 45 L225 45"
-              stroke="#000"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+    <div>
+      {/* Nav */}
+      <nav className="top-nav">
+        <div className="vital-logo">
+          <VitalLogo />
         </div>
       </nav>
 
-      {/* Main Content Area */}
-      <main style={{ padding: "1rem 0" }}>
-        <h1 className="dash-header">Today's Vitals</h1>
+      <div className="page-wrap">
+        <h1 className="page-title">Today's Vitals</h1>
+        <p
+          className="page-subtitle"
+          style={{ textAlign: "center", marginTop: "-0.5rem" }}>
+          {todayStr}
+        </p>
 
-        <div className="dash-grid">
-          {/* Blood Pressure Card */}
-          <div className="dash-card">
-            <h2 className="dash-card-title">Blood Pressure</h2>
-            <div className="dash-big-value">
-              {latestSystolic}/{latestDiastolic}
+        {isLoading ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.85rem",
+            }}>
+            <div className="card-grid-2">
+              <div className="card skeleton" style={{ height: 200 }} />
+              <div className="card skeleton" style={{ height: 200 }} />
             </div>
-            <span className="dash-unit">mmHg</span>
-
-            <div style={{ marginTop: "1rem" }}>
-              <div className="dash-input-row">
-                <label className="dash-input-label">Systolic</label>
-                <input
-                  type="number"
-                  className="dash-input-box"
-                  value={systolic}
-                  onChange={(e) => setSystolic(e.target.value)}
-                />
+            <div className="card skeleton" style={{ height: 180 }} />
+          </div>
+        ) : (
+          <>
+            {/* Stat row */}
+            {latestHR && (
+              <div
+                className="card"
+                style={{
+                  marginBottom: "0.85rem",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: "1.5rem",
+                  padding: "0.75rem 1rem",
+                }}>
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-dim)",
+                      marginBottom: 2,
+                    }}>
+                    Heart Rate
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "1.3rem",
+                    }}>
+                    {latestHR.bpm}{" "}
+                    <span
+                      style={{
+                        fontSize: "0.8rem",
+                        color: "var(--text-muted)",
+                      }}>
+                      bpm
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="dash-input-row" style={{ marginTop: "0.5rem" }}>
-                <label className="dash-input-label">Diastolic</label>
-                <input
-                  type="number"
-                  className="dash-input-box"
-                  value={diastolic}
-                  onChange={(e) => setDiastolic(e.target.value)}
-                />
+            )}
+
+            {/* Main 2-col cards */}
+            <div className="card-grid-2">
+              {/* Blood Pressure */}
+              <div className="card">
+                <div className="card-title-sm">Blood Pressure</div>
+                <div className="card-big-value">
+                  {latestBP
+                    ? `${latestBP.systolic}/${latestBP.diastolic}`
+                    : "—"}
+                </div>
+                <span className="card-unit">mmHg</span>
+
+                <div className="input-row">
+                  <span className="input-row-label">Systolic</span>
+                  <input
+                    className="inline-input"
+                    type="number"
+                    placeholder="120"
+                    value={systolic}
+                    onChange={(e) => setSystolic(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddBP()}
+                  />
+                </div>
+                <div className="input-row" style={{ marginTop: "0.4rem" }}>
+                  <span className="input-row-label">Diastolic</span>
+                  <input
+                    className="inline-input"
+                    type="number"
+                    placeholder="80"
+                    value={diastolic}
+                    onChange={(e) => setDiastolic(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddBP()}
+                  />
+                </div>
+                <button
+                  className="btn-tan"
+                  onClick={handleAddBP}
+                  disabled={bpLoading}>
+                  {bpLoading ? "Saving…" : "Add New"}
+                </button>
+              </div>
+
+              {/* Weight */}
+              <div className="card">
+                <div className="card-title-sm">Weight</div>
+                <div className="card-big-value">
+                  {latestWeight ? latestWeight.weight : "—"}
+                </div>
+                <span className="card-unit">kg</span>
+
+                <div style={{ marginTop: "1.75rem" }}>
+                  <input
+                    className="inline-input"
+                    type="number"
+                    placeholder="72.5"
+                    step="0.1"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddWeight()}
+                    style={{ width: "100%", textAlign: "left" }}
+                  />
+                </div>
+                <button
+                  className="btn-tan"
+                  onClick={handleAddWeight}
+                  disabled={wtLoading}
+                  style={{ marginTop: "0.6rem" }}>
+                  {wtLoading ? "Saving…" : "Add New"}
+                </button>
               </div>
             </div>
 
-            <button className="dash-add-btn" onClick={handleAddBP}>
-              Add New
-            </button>
-          </div>
-
-          {/* Weight Card */}
-          <div className="dash-card">
-            <h2 className="dash-card-title">Weight</h2>
-            <div className="dash-big-value">{latestWeight}</div>
-            <span className="dash-unit">kg</span>
-
-            <div style={{ marginTop: "1rem" }}>
-              {/* Invisible spacer spacing to align inputs height if needed, but actually the image just shows one input higher up */}
-              <div className="dash-input-row" style={{ marginTop: "1rem" }}>
-                {/* Image has the input alone */}
-                <input
-                  type="number"
-                  className="dash-input-box"
-                  style={{
-                    width: "100%",
-                    paddingLeft: "10px",
-                    marginTop: "1.75rem",
-                    marginBottom: "0.5rem",
-                  }}
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  placeholder="7"
-                />
-              </div>
+            {/* Weekly Outlook */}
+            <div className="card" style={{ marginTop: "0.85rem" }}>
+              <div className="card-section-title">Weekly Outlook</div>
+              <WeeklyChart points={weeklyPoints} />
             </div>
-
-            <button
-              className="dash-add-btn"
-              onClick={handleAddWeight}
-              style={{ marginTop: "1.3rem" }}>
-              Add New
-            </button>
-          </div>
-        </div>
-
-        {/* Weekly Outlook */}
-        <div className="weekly-outlook-card">
-          <h2 className="weekly-title">Weekly Outlook</h2>
-          <div className="weekly-chart">
-            {/* Extremely simple mocked chart using raw SVG that matches exactly the image shape */}
-            <svg
-              viewBox="0 0 400 120"
-              style={{ width: "100%", height: "100%" }}>
-              {/* Horizontal Grid lines */}
-              <line
-                x1="0"
-                y1="20"
-                x2="400"
-                y2="20"
-                stroke="#d0cbc1"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="40"
-                x2="400"
-                y2="40"
-                stroke="#d0cbc1"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="60"
-                x2="400"
-                y2="60"
-                stroke="#d0cbc1"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="80"
-                x2="400"
-                y2="80"
-                stroke="#d0cbc1"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="100"
-                x2="400"
-                y2="100"
-                stroke="#d0cbc1"
-                strokeWidth="1"
-              />
-              <line
-                x1="0"
-                y1="120"
-                x2="400"
-                y2="120"
-                stroke="#000"
-                strokeWidth="2"
-              />
-              {/* Vertical axis line */}
-              <line
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="120"
-                stroke="#000"
-                strokeWidth="2"
-              />
-
-              {/* Data path line */}
-              <path
-                d="M10 100 L60 85 L110 95 L160 65 L210 65 L260 45 L310 25 L360 20"
-                fill="none"
-                stroke="#000"
-                strokeWidth="2"
-              />
-              {/* Points */}
-              <circle cx="10" cy="100" r="4" fill="#000" />
-              <circle cx="60" cy="85" r="4" fill="#000" />
-              <circle cx="110" cy="95" r="4" fill="#000" />
-              <circle cx="160" cy="65" r="4" fill="#000" />
-              <circle cx="210" cy="65" r="4" fill="#000" />
-              <circle cx="260" cy="45" r="4" fill="#000" />
-              <circle cx="310" cy="25" r="4" fill="#000" />
-              <circle cx="360" cy="20" r="4" fill="#000" />
-            </svg>
-          </div>
-        </div>
-      </main>
+          </>
+        )}
+      </div>
     </div>
   );
 }

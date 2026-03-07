@@ -26,8 +26,8 @@ createRoot(document.getElementById("root")!).render(
         toastOptions={{
           style: {
             background: "var(--bg-card)",
-            border: "1px solid var(--border-bright)",
-            color: "var(--text-primary)",
+            border: "1px solid var(--border-light)",
+            color: "var(--text-main)",
           },
         }}
       />
