@@ -47,3 +47,7 @@ A Full-stack wellness tracking application featuring a React/Vite interactive da
 - **Concurrent Launcher**: Configured a new root workspace to run both backend and frontend servers simultaneously using `npm run dev`.
 - **Interactive UI**: Developed a custom, animated dashboard design featuring dynamic log filtering, history lists, and real-time form validations.
 - **Data Visualization**: Integrated `recharts` to render informative, real-time trend charts for Weight, Blood Pressure, and Heart Rate.
+
+## Architecture Diagram
+
+![Backend Architecture](./backend_architecture.svg)
