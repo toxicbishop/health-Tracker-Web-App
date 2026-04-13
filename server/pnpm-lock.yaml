@@ -4,6 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  path-to-regexp@>=8.0.0 <8.4.0: ^8.4.0
+  brace-expansion@>=2.0.0 <2.0.3: ^2.0.3
+
 importers:
 
   .:
