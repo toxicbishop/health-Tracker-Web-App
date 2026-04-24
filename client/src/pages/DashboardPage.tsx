@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHealthLogs } from "../hooks/useHealthData";
-import { Scale, Activity, Zap, ClipboardList, TrendingUp } from "lucide-react";
+import { Scale, Activity, Zap, ClipboardList, TrendingUp, type LucideIcon } from "lucide-react";
 import { format } from "date-fns";
+import type { WeightLog, BPLog, BothLog } from "../types/health";
 
 // ── VITAL Logo ──────────────────────────────────────────────────────────────
 function VitalLogo() {
@@ -20,17 +21,18 @@ function VitalLogo() {
   );
 }
 
-export default function DashboardPage() {
-  const navigate = useNavigate();
-  const { data: logs = [], isLoading } = useHealthLogs();
+// ── Action Button Component ────────────────────────────────────────────────
+interface ActionButtonProps {
+  icon: LucideIcon;
+  label: string;
+  sublabel: string;
+  color: string;
+  onClick: () => void;
+}
 
-  const latestWeight = useMemo(() => logs.find(l => l.type === "WEIGHT" || (l as any).type === "BOTH"), [logs]);
-  const latestBP = useMemo(() => logs.find(l => l.type === "BLOOD_PRESSURE" || (l as any).type === "BOTH"), [logs]);
-
-  const todayStr = format(new Date(), "EEEE, MMMM d");
-
-  const ActionButton = ({ icon: Icon, label, sublabel, color, onClick }: any) => (
-    <button className="action-card" onClick={onClick} style={{ "--card-accent": color } as any}>
+function ActionButton({ icon: Icon, label, sublabel, color, onClick }: ActionButtonProps) {
+  return (
+    <button className="action-card" onClick={onClick} style={{ "--card-accent": color } as React.CSSProperties}>
       <div className="action-icon-wrap">
         <Icon size={32} />
       </div>
@@ -41,6 +43,21 @@ export default function DashboardPage() {
       <Zap size={20} className="action-arrow" />
     </button>
   );
+}
+
+export default function DashboardPage() {
+  const navigate = useNavigate();
+  const { data: logs = [], isLoading } = useHealthLogs();
+
+  const latestWeight = useMemo(() => 
+    logs.find(l => l.type === "WEIGHT" || l.type === "BOTH") as (WeightLog | BothLog) | undefined, 
+  [logs]);
+  
+  const latestBP = useMemo(() => 
+    logs.find(l => l.type === "BLOOD_PRESSURE" || l.type === "BOTH") as (BPLog | BothLog) | undefined, 
+  [logs]);
+
+  const todayStr = format(new Date(), "EEEE, MMMM d");
 
   return (
     <div className="home-container">
@@ -86,13 +103,13 @@ export default function DashboardPage() {
             <div className="stat-mini-card">
               <span className="stat-mini-label">Last Weight</span>
               <span className="stat-mini-value">
-                {isLoading ? "..." : (latestWeight as any)?.weight ? `${(latestWeight as any).weight} kg` : "No data"}
+                {isLoading ? "..." : latestWeight?.weight ? `${latestWeight.weight} kg` : "No data"}
               </span>
             </div>
             <div className="stat-mini-card">
               <span className="stat-mini-label">Last BP</span>
               <span className="stat-mini-value">
-                {isLoading ? "..." : (latestBP as any)?.systolic ? `${(latestBP as any).systolic}/${(latestBP as any).diastolic}` : "No data"}
+                {isLoading ? "..." : latestBP?.systolic ? `${latestBP.systolic}/${latestBP.diastolic}` : "No data"}
               </span>
             </div>
           </div>
