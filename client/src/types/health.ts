@@ -3,7 +3,8 @@ export type ParameterType =
   | "BLOOD_PRESSURE"
   | "HEART_RATE"
   | "BLOOD_SUGAR"
-  | "SLEEP";
+  | "SLEEP"
+  | "BOTH";
 
 export interface BaseHealthLog {
   id?: string;
@@ -30,4 +31,12 @@ export interface HeartRateLog extends BaseHealthLog {
   bpm: number;
 }
 
-export type HealthLog = WeightLog | BPLog | HeartRateLog;
+export interface BothLog extends BaseHealthLog {
+  type: "BOTH";
+  weight: number;
+  unit: "kg" | "lbs";
+  systolic: number;
+  diastolic: number;
+}
+
+export type HealthLog = WeightLog | BPLog | HeartRateLog | BothLog;
