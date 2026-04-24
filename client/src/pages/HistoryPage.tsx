@@ -1,29 +1,31 @@
-﻿import { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useHealthLogs } from "../hooks/useHealthData";
 import type {
   HealthLog,
   WeightLog,
   BPLog,
-  HeartRateLog,
+  BothLog,
 } from "../types/health";
 import {
   Scale,
   Activity,
-  HeartPulse,
+  Zap,
   Search,
   Download,
   RefreshCw,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
-type FilterType = "ALL" | "WEIGHT" | "BLOOD_PRESSURE" | "HEART_RATE";
+type FilterType = "ALL" | "WEIGHT" | "BLOOD_PRESSURE" | "BOTH";
 
 function formatDateTime(ts: string) {
   return format(parseISO(ts), "MMM d, yyyy · h:mm a");
 }
 
-function getDisplayValue(log: HealthLog): { primary: string; unit: string } {
+function getDisplayValue(log: HealthLog): { primary: string; secondary?: string; unit: string } {
   if (log.type === "WEIGHT")
     return {
       primary: `${(log as WeightLog).weight}`,
@@ -34,8 +36,14 @@ function getDisplayValue(log: HealthLog): { primary: string; unit: string } {
       primary: `${(log as BPLog).systolic}/${(log as BPLog).diastolic}`,
       unit: "mmHg",
     };
-  if (log.type === "HEART_RATE")
-    return { primary: `${(log as HeartRateLog).bpm}`, unit: "bpm" };
+  if (log.type === "BOTH") {
+    const l = log as BothLog;
+    return {
+      primary: `${l.weight} ${l.unit}`,
+      secondary: `${l.systolic}/${l.diastolic} mmHg`,
+      unit: "Combined",
+    };
+  }
   return { primary: "—", unit: "" };
 }
 
@@ -49,11 +57,11 @@ function getTypeStyle(type: string) {
         cls: "log-icon-bp",
         label: "Blood Pressure",
       };
-    case "HEART_RATE":
+    case "BOTH":
       return {
-        icon: <HeartPulse size={16} />,
-        cls: "log-icon-hr",
-        label: "Heart Rate",
+        icon: <Zap size={16} />,
+        cls: "log-icon-both",
+        label: "Full Checkup",
       };
     default:
       return { icon: <Activity size={16} />, cls: "log-icon-wt", label: type };
@@ -61,14 +69,22 @@ function getTypeStyle(type: string) {
 }
 
 function exportCSV(logs: HealthLog[]) {
-  const rows = [["Date", "Type", "Value", "Unit", "Notes"]];
+  const rows = [["Date", "Type", "Weight", "BP", "Notes"]];
   logs.forEach((log) => {
-    const { primary, unit } = getDisplayValue(log);
+    let weight = "";
+    let bp = "";
+    if (log.type === "WEIGHT") weight = `${(log as WeightLog).weight} ${(log as WeightLog).unit}`;
+    if (log.type === "BLOOD_PRESSURE") bp = `${(log as BPLog).systolic}/${(log as BPLog).diastolic}`;
+    if (log.type === "BOTH") {
+      weight = `${(log as BothLog).weight} ${(log as BothLog).unit}`;
+      bp = `${(log as BothLog).systolic}/${(log as BothLog).diastolic}`;
+    }
+
     rows.push([
       format(parseISO(log.timestamp), "yyyy-MM-dd HH:mm"),
       log.type,
-      primary,
-      unit,
+      weight,
+      bp,
       log.notes ?? "",
     ]);
   });
@@ -85,13 +101,14 @@ function exportCSV(logs: HealthLog[]) {
 const FILTERS: { value: FilterType; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "WEIGHT", label: "Weight" },
-  { value: "BLOOD_PRESSURE", label: "Blood Pressure" },
-  { value: "HEART_RATE", label: "Heart Rate" },
+  { value: "BLOOD_PRESSURE", label: "BP" },
+  { value: "BOTH", label: "Checkups" },
 ];
 
 const PAGE_SIZE = 20;
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
   const {
     data: logs = [],
     isLoading,
@@ -117,10 +134,11 @@ export default function HistoryPage() {
       sorted.filter((log) => {
         if (filter !== "ALL" && log.type !== filter) return false;
         if (!search) return true;
-        const { primary } = getDisplayValue(log);
+        const { primary, secondary = "" } = getDisplayValue(log);
         return (
           log.type.toLowerCase().includes(search.toLowerCase()) ||
           primary.includes(search) ||
+          secondary.includes(search) ||
           (log.notes ?? "").toLowerCase().includes(search.toLowerCase()) ||
           formatDateTime(log.timestamp)
             .toLowerCase()
@@ -145,37 +163,23 @@ export default function HistoryPage() {
   return (
     <div>
       <nav className="top-nav">
-        <span className="top-nav-title">Health History</span>
-        <div
-          style={{
-            position: "absolute",
-            right: "1rem",
-            display: "flex",
-            gap: "0.35rem",
-          }}>
-          <button
-            className="btn-sm"
-            id="history-export-csv"
-            onClick={() => exportCSV(filtered)}
-            title="Export CSV">
-            <Download size={13} />
+        <button className="top-nav-back" onClick={() => navigate("/")}>
+          <ArrowLeft size={24} />
+        </button>
+        <span className="top-nav-title">History</span>
+        <div style={{ position: "absolute", right: "1rem", display: "flex", gap: "0.5rem" }}>
+          <button className="icon-btn-tan" onClick={() => exportCSV(filtered)}>
+            <Download size={18} />
           </button>
-          <button
-            className="btn-sm"
-            id="history-refresh-btn"
-            onClick={() => refetch()}
-            title="Refresh">
-            <RefreshCw size={13} />
+          <button className="icon-btn-tan" onClick={() => refetch()}>
+            <RefreshCw size={18} className={isLoading ? "animate-spin" : ""} />
           </button>
         </div>
       </nav>
 
       <div className="page-wrap">
-        <h1 className="page-title-left">All Entries</h1>
-        <p className="page-subtitle">
-          {filtered.length} record{filtered.length !== 1 ? "s" : ""}
-        </p>
-
+        <h1 className="page-title">Health History</h1>
+        
         {isError && (
           <div className="alert alert-error">
             <AlertCircle size={15} />{" "}
@@ -183,109 +187,69 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {/* Filter tabs */}
-        <div className="filter-bar" id="filter-tabs">
+        <div className="search-wrap-premium">
+          <Search size={20} className="search-icon-p" />
+          <input
+            className="search-input-p"
+            type="text"
+            placeholder="Search notes or values..."
+            value={search}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="filter-pill-row">
           {FILTERS.map((f) => (
             <button
               key={f.value}
-              id={`filter-${f.value.toLowerCase()}`}
-              className={`filter-tab${filter === f.value ? " active" : ""}`}
+              className={`filter-pill${filter === f.value ? " active" : ""}`}
               onClick={() => handleFilter(f.value)}>
               {f.label}
             </button>
           ))}
         </div>
 
-        {/* Search */}
-        <div className="search-wrap">
-          <span className="search-icon">
-            <Search size={15} />
-          </span>
-          <input
-            id="history-search"
-            className="search-input"
-            type="text"
-            placeholder="Search entries…"
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-          />
-        </div>
-
-        {/* List */}
         {isLoading ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.25rem",
-            }}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="skeleton"
-                style={{ height: 60, borderRadius: 8 }}
-              />
+          <div className="skeleton-list">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="card skeleton" style={{ height: 80, marginBottom: "0.75rem" }} />
             ))}
           </div>
         ) : paged.length === 0 ? (
-          <div className="empty-state">
-            <Search size={32} />
-            <div className="empty-title">
-              {search ? "No matching entries" : "No entries yet"}
-            </div>
-            <p className="empty-desc">
-              {search
-                ? `No results for "${search}".`
-                : "Log health metrics to see them here."}
-            </p>
+          <div className="empty-state-premium">
+            <Search size={48} style={{ opacity: 0.2 }} />
+            <p>No records found matching your criteria.</p>
           </div>
         ) : (
-          <div className="card">
-            <div className="log-list">
-              {paged.map((log) => {
-                const ts = getTypeStyle(log.type);
-                const { primary, unit } = getDisplayValue(log);
-                return (
-                  <div key={log.id} className="log-row">
-                    <div className={`log-icon ${ts.cls}`}>{ts.icon}</div>
-                    <div className="log-body">
-                      <div className="log-type">{ts.label}</div>
-                      <div className="log-date">
-                        {formatDateTime(log.timestamp)}
-                      </div>
-                      {log.notes && (
-                        <div className="log-notes">"{log.notes}"</div>
-                      )}
+          <div className="log-stack">
+            {paged.map((log) => {
+              const ts = getTypeStyle(log.type);
+              const { primary, secondary, unit } = getDisplayValue(log);
+              return (
+                <div key={log.id} className="history-card">
+                  <div className={`history-icon-box ${ts.cls}`}>{ts.icon}</div>
+                  <div className="history-info">
+                    <div className="history-type-row">
+                      <span className="history-label">{ts.label}</span>
+                      <span className="history-time">{formatDateTime(log.timestamp)}</span>
                     </div>
-                    <div className="log-value">
-                      <div className="log-num">{primary}</div>
-                      <div className="log-unit">{unit}</div>
+                    <div className="history-main-val">
+                      {primary} <span className="history-unit">{unit !== "Combined" ? unit : ""}</span>
                     </div>
+                    {secondary && <div className="history-sub-val">{secondary}</div>}
+                    {log.notes && <p className="history-note">"{log.notes}"</p>}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="pagination">
-            <button
-              className="btn-sm"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}>
-              ← Prev
-            </button>
-            <span>
-              Page {page} of {totalPages}
-            </span>
-            <button
-              className="btn-sm"
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => p + 1)}>
-              Next →
-            </button>
+          <div className="pagination-premium">
+            <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Prev</button>
+            <span>{page} / {totalPages}</span>
+            <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
           </div>
         )}
       </div>
