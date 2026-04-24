@@ -29,7 +29,7 @@ export function useAddHealthLog() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: (log: Record<string, unknown>) => healthApi.addLog(log),
+    mutationFn: (log: Omit<HealthLog, "id" | "userId">) => healthApi.addLog(log),
 
     onMutate: async (newLog) => {
       // Cancel any outgoing refetches so they don't overwrite
