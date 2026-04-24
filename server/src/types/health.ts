@@ -4,6 +4,7 @@ export enum ParameterType {
   HEART_RATE = "HEART_RATE",
   BLOOD_SUGAR = "BLOOD_SUGAR",
   SLEEP = "SLEEP",
+  BOTH = "BOTH",
 }
 
 export interface BaseHealthLog {
@@ -31,4 +32,12 @@ export interface HeartRateLog extends BaseHealthLog {
   bpm: number;
 }
 
-export type HealthLog = WeightLog | BPLog | HeartRateLog;
+export interface BothLog extends BaseHealthLog {
+  type: ParameterType.BOTH;
+  weight: number;
+  unit: "kg" | "lbs";
+  systolic: number;
+  diastolic: number;
+}
+
+export type HealthLog = WeightLog | BPLog | HeartRateLog | BothLog;
