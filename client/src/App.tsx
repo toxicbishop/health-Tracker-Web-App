@@ -12,60 +12,9 @@ import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import LogPage from "./pages/LogPage";
 import HistoryPage from "./pages/HistoryPage";
-import { useHealthLogs } from "./hooks/useHealthData";
-import { Home, PenLine, ClipboardList, User, LogOut } from "lucide-react";
-import { format } from "date-fns";
-
-// ── Profile Page ─────────────────────────────────────────────────────────────
-function ProfilePage() {
-  const { user, logout } = useAuth();
-  const { data: logs = [] } = useHealthLogs();
-
-  const bpCount = logs.filter((l) => l.type === "BLOOD_PRESSURE").length;
-  const wtCount = logs.filter((l) => l.type === "WEIGHT").length;
-  const hrCount = logs.filter((l) => l.type === "HEART_RATE").length;
-  const initial = (user?.username ?? "?")[0].toUpperCase();
-  const since = user?.createdAt
-    ? format(new Date(user.createdAt), "MMMM yyyy")
-    : "";
-
-  return (
-    <div>
-      <nav className="top-nav">
-        <span className="top-nav-title">Profile</span>
-      </nav>
-      <div className="profile-section">
-        <div className="profile-avatar">{initial}</div>
-        <div className="profile-username">{user?.username ?? "—"}</div>
-        {since && <div className="profile-since">Member since {since}</div>}
-
-        {/* Stats */}
-        <div className="profile-stat-grid">
-          <div className="profile-stat">
-            <div className="profile-stat-val">{logs.length}</div>
-            <div className="profile-stat-label">Total Logs</div>
-          </div>
-          <div className="profile-stat">
-            <div className="profile-stat-val">{bpCount + wtCount}</div>
-            <div className="profile-stat-label">Vitals</div>
-          </div>
-          <div className="profile-stat">
-            <div className="profile-stat-val">{hrCount}</div>
-            <div className="profile-stat-label">Heart Rate</div>
-          </div>
-        </div>
-
-        {/* Menu */}
-        <div className="card" style={{ padding: "0 0.25rem" }}>
-          <button className="profile-menu-item danger" onClick={logout}>
-            <LogOut size={18} />
-            Log Out
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import StatsPage from "./pages/StatsPage";
+import ProfilePage from "./pages/ProfilePage";
+import { Home, PenLine, ClipboardList, User } from "lucide-react";
 
 // ── Bottom Tab Bar ───────────────────────────────────────────────────────────
 const TABS = [
@@ -102,7 +51,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
-      <Route path="/stats" element={<DashboardPage />} />
+      <Route path="/stats" element={<StatsPage />} />
       <Route path="/log" element={<LogPage />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/profile" element={<ProfilePage />} />

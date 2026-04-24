@@ -45,10 +45,22 @@ export const HeartRateLogSchema = BaseLogSchema.extend({
     .max(300, "BPM value is too high"),
 });
 
+export const BothLogSchema = BaseLogSchema.extend({
+  type: z.literal(ParameterType.BOTH),
+  weight: z.number().positive().max(1000),
+  unit: z.enum(["kg", "lbs"]),
+  systolic: z.number().int().min(70).max(300),
+  diastolic: z.number().int().min(40).max(150),
+}).refine((data) => data.systolic > data.diastolic, {
+  message: "Systolic pressure must be greater than diastolic pressure",
+  path: ["systolic"],
+});
+
 export const HealthLogSchema = z.discriminatedUnion("type", [
   WeightLogSchema,
   BPLogSchema,
   HeartRateLogSchema,
+  BothLogSchema,
 ]);
 
 export const HealthQuerySchema = z.object({
