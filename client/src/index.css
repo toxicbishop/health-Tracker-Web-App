@@ -855,3 +855,278 @@ img {
   background: var(--bg-card) !important;
   color: var(--error) !important;
 }
+
+/* ── Redesign: Mom's Health Tracker (PRD) ───────────────── */
+
+.home-container {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-header {
+  text-align: center;
+  margin: 2.5rem 0;
+}
+
+.welcome-text {
+  font-family: var(--font-serif);
+  font-size: 2.8rem;
+  line-height: 1.1;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+}
+
+.today-date {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.main-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  text-align: left;
+  border: 2px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.action-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  background: var(--card-accent);
+}
+
+.action-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--card-accent);
+}
+
+.action-card:active {
+  transform: scale(0.98);
+}
+
+.action-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-accent);
+}
+
+.action-label {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.action-sublabel {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.action-arrow {
+  margin-left: auto;
+  opacity: 0.3;
+  color: var(--card-accent);
+}
+
+/* Stats Mini Grid */
+.section-title-premium {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  padding-left: 4px;
+}
+
+.stats-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-mini-card {
+  background: var(--bg-card);
+  padding: 1.25rem;
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-mini-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.stat-mini-value {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.home-footer-actions {
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+.secondary-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 1rem;
+  background: var(--bg-btn-tan);
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+/* Log Page Redesign */
+.log-form-card {
+  background: var(--bg-card);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: var(--shadow-card);
+  margin-top: 1rem;
+}
+
+.premium-field {
+  margin-bottom: 1.5rem;
+}
+
+.premium-label {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-main);
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.field-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--text-dim);
+}
+
+.premium-input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 1rem 1rem 1rem 3.5rem;
+  font-size: 1.5rem;
+  font-family: var(--font-serif);
+  transition: all 0.2s;
+}
+
+.premium-input:focus {
+  background: #fff;
+  border-color: var(--text-main);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.premium-textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 2px solid transparent;
+  border-radius: 14px;
+  padding: 1rem;
+  font-size: 1.1rem;
+  min-height: 100px;
+  font-family: var(--font-sans);
+}
+
+.save-btn-premium {
+  width: 100%;
+  background: #000;
+  color: #fff;
+  padding: 1.25rem;
+  border-radius: 16px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.save-btn-premium:active {
+  transform: scale(0.98);
+}
+
+/* Success Overlay */
+.success-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.success-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.success-title {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+}
+
+.success-subtitle {
+  color: var(--text-dim);
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.bp-fields-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+

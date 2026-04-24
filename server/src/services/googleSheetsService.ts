@@ -46,10 +46,8 @@ class GoogleSheetsService {
 
     try {
       // Map the log object to a row array
-      // Columns: Timestamp, UserID, Type, Value, Unit, Notes
+      // Columns: Timestamp, UserID, Type, Weight, Systolic, Diastolic, Unit, Notes
       const values = this.mapLogToRow(log).map((val) => {
-        // Prevent Formula Injection (CSV/Spreadsheet injection)
-        // If a string starts with characters that trigger formulas, escape them
         if (
           typeof val === "string" &&
           (val.startsWith("=") ||
@@ -57,15 +55,15 @@ class GoogleSheetsService {
             val.startsWith("-") ||
             val.startsWith("@"))
         ) {
-          return `'${val}`; // Prepend a single quote to treat as text
+          return `'${val}`;
         }
         return val;
       });
 
       await this.sheets.spreadsheets.values.append({
         spreadsheetId: this.spreadsheetId,
-        range: "Sheet1!A:F",
-        valueInputOption: "RAW", // Use RAW to prevent formula interpretation
+        range: "Sheet1!A:H",
+        valueInputOption: "RAW",
         insertDataOption: "INSERT_ROWS",
         requestBody: {
           values: [values],
@@ -93,7 +91,7 @@ class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: "Sheet1!A:F",
+        range: "Sheet1!A:H",
       });
 
       const rows = response.data.values;
@@ -101,10 +99,10 @@ class GoogleSheetsService {
 
       const logs: HealthLog[] = [];
 
-      for (const row of rows) {
-        // Skip header row if necessary, here we assume all rows or manually filter
-        // Structure: Timestamp | UserID | Type | Value | Unit | Notes
-        const [timestamp, rowUserId, type, value, unit, notes] = row;
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        // Structure: Timestamp | UserID | Type | Weight | Systolic | Diastolic | Unit | Notes
+        const [timestamp, rowUserId, type, weight, systolic, diastolic, unit, notes] = row;
 
         if (rowUserId === userId) {
           let logObj: any = {
@@ -116,14 +114,18 @@ class GoogleSheetsService {
           };
 
           if (type === ParameterType.WEIGHT) {
-            logObj.weight = parseFloat(value);
+            logObj.weight = parseFloat(weight);
             logObj.unit = unit;
           } else if (type === ParameterType.BLOOD_PRESSURE) {
-            const [sys, dia] = value.split("/");
-            logObj.systolic = parseInt(sys, 10);
-            logObj.diastolic = parseInt(dia, 10);
+            logObj.systolic = parseInt(systolic, 10);
+            logObj.diastolic = parseInt(diastolic, 10);
           } else if (type === ParameterType.HEART_RATE) {
-            logObj.bpm = parseInt(value, 10);
+            logObj.bpm = parseInt(weight, 10); // Reusing weight col for single value
+          } else if (type === ParameterType.BOTH) {
+            logObj.weight = parseFloat(weight);
+            logObj.systolic = parseInt(systolic, 10);
+            logObj.diastolic = parseInt(diastolic, 10);
+            logObj.unit = unit;
           }
           logs.push(logObj as HealthLog);
         }
@@ -138,26 +140,35 @@ class GoogleSheetsService {
 
   private mapLogToRow(log: HealthLog): any[] {
     const { timestamp, userId, type, notes = "" } = log;
-    let value: string | number = "";
+    let weight: any = "";
+    let systolic: any = "";
+    let diastolic: any = "";
     let unit: string = "";
 
     switch (log.type) {
       case ParameterType.WEIGHT:
-        value = log.weight;
+        weight = log.weight;
         unit = log.unit;
         break;
       case ParameterType.BLOOD_PRESSURE:
-        value = `${log.systolic}/${log.diastolic}`;
+        systolic = log.systolic;
+        diastolic = log.diastolic;
         unit = "mmHg";
         break;
       case ParameterType.HEART_RATE:
-        value = log.bpm;
+        weight = log.bpm;
         unit = "bpm";
+        break;
+      case ParameterType.BOTH:
+        weight = log.weight;
+        systolic = log.systolic;
+        diastolic = log.diastolic;
+        unit = log.unit;
         break;
     }
 
-    // Timestamp | UserID | Type | Value | Unit | Notes
-    return [timestamp, userId, type, value, unit, notes];
+    // Timestamp | UserID | Type | Weight | Systolic | Diastolic | Unit | Notes
+    return [timestamp, userId, type, weight, systolic, diastolic, unit, notes];
   }
 }
 

@@ -102,6 +102,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
+      <Route path="/stats" element={<DashboardPage />} />
       <Route path="/log" element={<LogPage />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/profile" element={<ProfilePage />} />
