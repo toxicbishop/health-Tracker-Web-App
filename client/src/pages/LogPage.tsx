@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAddHealthLog } from "../hooks/useHealthData";
-import { Scale, Activity, Zap, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Scale, Activity, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import type { HealthLog, WeightLog, BPLog, BothLog, ParameterType } from "../types/health";
 
 type LogMode = "WEIGHT" | "BLOOD_PRESSURE" | "BOTH";
 
@@ -35,23 +36,42 @@ export default function LogPage() {
       return;
     }
 
-    const payload: any = {
-      type: mode,
+    // Construct the payload based on the mode
+    const baseData = {
+      type: mode as ParameterType,
       timestamp: new Date().toISOString(),
       notes: notes.trim(),
     };
 
-    if (mode === "WEIGHT" || mode === "BOTH") {
-      payload.weight = parseFloat(weight);
-      payload.unit = "kg";
-    }
-    if (mode === "BLOOD_PRESSURE" || mode === "BOTH") {
-      payload.systolic = parseInt(systolic);
-      payload.diastolic = parseInt(diastolic);
+    let finalPayload: Omit<HealthLog, "id" | "userId">;
+
+    if (mode === "WEIGHT") {
+      finalPayload = {
+        ...baseData,
+        type: "WEIGHT",
+        weight: parseFloat(weight),
+        unit: "kg",
+      } as WeightLog;
+    } else if (mode === "BLOOD_PRESSURE") {
+      finalPayload = {
+        ...baseData,
+        type: "BLOOD_PRESSURE",
+        systolic: parseInt(systolic),
+        diastolic: parseInt(diastolic),
+      } as BPLog;
+    } else {
+      finalPayload = {
+        ...baseData,
+        type: "BOTH",
+        weight: parseFloat(weight),
+        unit: "kg",
+        systolic: parseInt(systolic),
+        diastolic: parseInt(diastolic),
+      } as BothLog;
     }
 
     try {
-      await addLog.mutateAsync(payload);
+      await addLog.mutateAsync(finalPayload);
       setIsSuccess(true);
       setTimeout(() => navigate("/"), 2000);
     } catch {
