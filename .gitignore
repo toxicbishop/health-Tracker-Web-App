@@ -1,7 +1,17 @@
 node_modules
-dist
-.env
 .DS_Store
 
 #Claude
 .claude/
+
+#Python
+dist
+.venv
+__pycache__
+
+#VS code
+.vscode
+.agent
+
+#ENV
+.env
