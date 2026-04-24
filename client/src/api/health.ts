@@ -9,7 +9,7 @@ export const healthApi = {
     return api.get<HealthLog[]>(`/health-log${query}`);
   },
 
-  addLog: (log: Record<string, unknown>) =>
+  addLog: (log: Omit<HealthLog, "id" | "userId">) =>
     api.post<HealthLog>("/health-log", log),
 };
 
