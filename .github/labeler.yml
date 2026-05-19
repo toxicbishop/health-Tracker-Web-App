@@ -1,0 +1,15 @@
+client:
+  - changed-files:
+      - any-glob-to-any-file: 'client/**'
+server:
+  - changed-files:
+      - any-glob-to-any-file: 'server/**'
+api:
+  - changed-files:
+      - any-glob-to-any-file: 'api/**'
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: 'docs/**'
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: '**/package*.json'
