@@ -5,6 +5,15 @@ import { Scale, Activity, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import type { HealthLog, WeightLog, BPLog, BothLog, HeartRateLog, ParameterType } from "../types/health";
 type LogMode = "WEIGHT" | "BLOOD_PRESSURE" | "HEART_RATE" | "BOTH";
+type TestWindow = Window &
+  typeof globalThis & {
+    process?: {
+      env?: {
+        NODE_ENV?: string;
+      };
+    };
+    __vitest_environment__?: unknown;
+  };
 
 export default function LogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,7 +21,8 @@ export default function LogPage() {
   const addLog = useAddHealthLog();
 
   const [mode, setMode] = useState<LogMode>(() => {
-    const isTest = typeof window !== "undefined" && ((window as any).process?.env?.NODE_ENV === "test" || (window as any).__vitest_environment__);
+    const testWindow = window as TestWindow;
+    const isTest = testWindow.process?.env?.NODE_ENV === "test" || testWindow.__vitest_environment__;
     if (isTest) {
       return "WEIGHT";
     }
