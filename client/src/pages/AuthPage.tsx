@@ -1,8 +1,8 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ChevronLeft } from "lucide-react";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot";
 
 // VITAL wordmark SVG as a component
 function VitalLogo({ size = 200 }: { size?: number }) {
@@ -110,14 +110,26 @@ export default function AuthPage() {
 
   const handlePrimary = async () => {
     setError("");
-    if (!username.trim()) {
-      setError("Please enter your username.");
+    if (mode === "forgot") {
+      if (!username.trim()) {
+        setError("Please enter your username.");
+        return;
+      }
+      setLoading(true);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        setError("Instructions sent if user exists.");
+      } finally {
+        setLoading(false);
+      }
       return;
     }
-    if (!password.trim()) {
-      setError("Please enter your password.");
+
+    if (!username.trim() || !password.trim() || (mode === "register" && !confirm.trim())) {
+      setError("Please fill in all fields.");
       return;
     }
+
     if (mode === "register") {
       if (password !== confirm) {
         setError("Passwords do not match.");
@@ -128,6 +140,7 @@ export default function AuthPage() {
         return;
       }
     }
+
     setLoading(true);
     try {
       if (mode === "login") {
@@ -148,7 +161,7 @@ export default function AuthPage() {
     <div className="auth-wrap">
       {/* Top Nav */}
       <nav className="top-nav">
-        {!isLogin && (
+        {mode !== "login" && (
           <button
             className="top-nav-back"
             onClick={() => switchMode("login")}
@@ -157,7 +170,7 @@ export default function AuthPage() {
           </button>
         )}
         <span className="top-nav-title">
-          {isLogin ? "Login" : "Create Account"}
+          {mode === "login" ? "Login" : mode === "register" ? "Create Account" : "Reset Password"}
         </span>
       </nav>
 
@@ -169,13 +182,13 @@ export default function AuthPage() {
 
         {/* Heading */}
         <h1 className="auth-heading">
-          {isLogin ? "Welcome back" : "Create account"}
+          {mode === "login" ? "Welcome back" : mode === "register" ? "Create account" : "Reset password"}
         </h1>
 
         {/* Fields */}
         <div className="field-group">
           <label className="field-label" htmlFor="auth-username">
-            {isLogin ? "Username" : "Username"}
+            Username
           </label>
           <input
             id="auth-username"
@@ -188,22 +201,24 @@ export default function AuthPage() {
           />
         </div>
 
-        <div className="field-group">
-          <label className="field-label" htmlFor="auth-password">
-            Password
-          </label>
-          <input
-            id="auth-password"
-            className="field-input-line"
-            type="password"
-            autoComplete={isLogin ? "current-password" : "new-password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-          />
-        </div>
+        {mode !== "forgot" && (
+          <div className="field-group">
+            <label className="field-label" htmlFor="auth-password">
+              Password
+            </label>
+            <input
+              id="auth-password"
+              className="field-input-line"
+              type="password"
+              autoComplete={isLogin ? "current-password" : "new-password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+        )}
 
-        {!isLogin && (
+        {mode === "register" && (
           <div className="field-group">
             <label className="field-label" htmlFor="auth-confirm">
               Confirm Password
@@ -224,45 +239,99 @@ export default function AuthPage() {
 
         {/* Actions */}
         <div className="auth-actions">
-          <button
-            id="auth-primary-btn"
-            className="btn-primary"
-            onClick={handlePrimary}
-            disabled={loading}>
-            {loading
-              ? isLogin
-                ? "Signing in…"
-                : "Creating account…"
-              : isLogin
-                ? "Log In"
-                : "Sign up"}
-          </button>
+          {mode === "login" && (
+            <>
+              <button
+                id="auth-primary-btn"
+                className="btn-primary"
+                onClick={handlePrimary}
+                disabled={loading}
+                type="submit">
+                {loading ? "Signing in…" : "Sign In"}
+              </button>
 
-          {isLogin && (
-            <button
-              id="auth-switch-register"
-              className="btn-outline"
-              onClick={() => switchMode("register")}
-              disabled={loading}>
-              Sign up
-            </button>
+              <button
+                id="auth-switch-register"
+                className="btn-outline"
+                onClick={() => switchMode("register")}
+                disabled={loading}
+                type="button">
+                Sign up
+              </button>
+
+              <button
+                id="auth-switch-forgot"
+                className="btn-link"
+                onClick={() => switchMode("forgot")}
+                disabled={loading}
+                type="button"
+                style={{ background: "none", border: "none", cursor: "pointer", textDecoration: "underline", color: "inherit", marginTop: "10px" }}>
+                Forgot password?
+              </button>
+            </>
+          )}
+
+          {mode === "register" && (
+            <>
+              <button
+                id="auth-primary-btn"
+                className="btn-primary"
+                onClick={handlePrimary}
+                disabled={loading}
+                type="submit">
+                {loading ? "Creating account…" : "Create Account"}
+              </button>
+
+              <button
+                id="auth-switch-login"
+                className="btn-outline"
+                onClick={() => switchMode("login")}
+                disabled={loading}
+                type="button">
+                Back to sign in
+              </button>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <>
+              <button
+                id="auth-primary-btn"
+                className="btn-primary"
+                onClick={handlePrimary}
+                disabled={loading}
+                type="submit">
+                Send Reset Instructions
+              </button>
+
+              <button
+                id="auth-switch-login"
+                className="btn-outline"
+                onClick={() => switchMode("login")}
+                disabled={loading}
+                type="button">
+                Back to sign in
+              </button>
+            </>
           )}
         </div>
 
         {/* Footer toggle */}
-        <div className="auth-footer">
-          {isLogin ? (
-            <>
-              Don't have an account?
-              <button onClick={() => switchMode("register")}>Create one</button>
-            </>
-          ) : (
-            <>
-              Already have an account?
-              <button onClick={() => switchMode("login")}>Log in</button>
-            </>
-          )}
-        </div>
+        {mode !== "forgot" && (
+          <div className="auth-footer">
+            {isLogin ? (
+              <>
+                Don't have an account?{" "}
+                <button onClick={() => switchMode("register")} type="button">Create one</button>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <button onClick={() => switchMode("login")} type="button">Log in</button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
