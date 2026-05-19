@@ -14,12 +14,14 @@
   "packageManager": "pnpm@10.28.1",
   "overrides": {
     "path-to-regexp": "^8.4.0",
-    "brace-expansion": "^2.0.3"
+    "brace-expansion": "^2.0.3",
+    "gcp-metadata": "^8.1.2"
   },
   "pnpm": {
     "overrides": {
       "path-to-regexp@>=8.0.0 <8.4.0": "^8.4.0",
-      "brace-expansion@>=2.0.0 <2.0.3": "^2.0.3"
+      "brace-expansion@>=2.0.0 <2.0.3": "^2.0.3",
+      "gcp-metadata": "^8.1.2"
     }
   },
   "devDependencies": {
