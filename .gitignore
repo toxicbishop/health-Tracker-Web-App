@@ -1,17 +1,26 @@
-node_modules
+node_modules/
 .DS_Store
+*.log
 
 #Claude
 .claude/
 
 #Python
-dist
-.venv
-__pycache__
+dist/
+.venv/
+__pycache__/
 
 #VS code
-.vscode
-.agent
+.vscode/
+.agent/
 
 #ENV
 .env
+
+# Flutter/Dart
+**/.dart_tool/
+**/build/
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/coverage/

@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
-    "dev": "concurrently --names \"SERVER,CLIENT\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "build": "npm run build --prefix server && npm run build --prefix client",
-    "start": "npm start --prefix server"
+    "install:all": "npm install && npm install --prefix server && cd flutter_client && flutter pub get",
+    "dev": "concurrently --names \"SERVER,FLUTTER\" --prefix-colors \"cyan,green\" \"npm run dev --prefix server\" \"cd flutter_client && flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:3000\"",
+    "build": "npm run build --prefix server && cd flutter_client && flutter build web --no-web-resources-cdn --no-wasm-dry-run",
+    "test": "npm run build --prefix server && cd flutter_client && flutter analyze && flutter test",
+    "start": "npm start --prefix server",
+    "preview:flutter": "cd flutter_client\\build\\web && python -m http.server 8090 --bind 127.0.0.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

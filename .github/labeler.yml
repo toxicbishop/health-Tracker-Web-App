@@ -1,15 +1,13 @@
 client:
   - changed-files:
-      - any-glob-to-any-file: 'client/**'
+      - any-glob-to-any-file: 'flutter_client/**'
 server:
   - changed-files:
       - any-glob-to-any-file: 'server/**'
-api:
-  - changed-files:
-      - any-glob-to-any-file: 'api/**'
 documentation:
   - changed-files:
       - any-glob-to-any-file: 'docs/**'
 dependencies:
   - changed-files:
       - any-glob-to-any-file: '**/package*.json'
+      - any-glob-to-any-file: '**/pubspec.yaml'

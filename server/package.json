@@ -30,7 +30,6 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.3.0",
-    "concurrently": "^9.2.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },

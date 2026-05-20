@@ -11,22 +11,31 @@ permissions:
 
 jobs:
   client:
-    name: Client — Lint, Build & Test
+    name: Client — Analyze, Build & Test
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./client
+        working-directory: ./flutter_client
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v6
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: client/package-lock.json
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test -- --run
+          distribution: 'zulu'
+          java-version: '17'
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Analyze code
+        run: flutter analyze
+      - name: Run unit tests
+        run: flutter test
+      - name: Build web release
+        run: flutter build web --no-web-resources-cdn --no-wasm-dry-run
 
   server:
     name: Server — Build
