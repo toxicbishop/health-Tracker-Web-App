@@ -1,16 +1,27 @@
-# Health Tracker WebApp
+# Health Tracker
 
-A Full-stack wellness tracking application featuring a Flutter Web interactive dashboard and a Node/Express backend that securely saves structured health data directly to Google Sheets and MongoDB.
+A Flutter Web health tracking application that stores data directly in Google Sheets via a Google Apps Script web app. No dedicated backend server is required.
 
 ---
 
 ## Project Structure
 
-The project is organized as a monorepo containing the following components:
+```
+health-Tracker-Web-App/
+├── flutter_client/       # Flutter Web client application
+├── apps_script.js        # Google Apps Script to deploy on your Google Sheet
+└── docs/                 # Project documentation
+```
 
-- **server**: A Node/Express and TypeScript backend that exposes REST endpoints for authentication and health tracking data, persisting users to MongoDB and logs to Google Sheets.
-- **flutter_client**: A Dart + Flutter Web client for a phone-first health tracking user interface that adapts dynamically to larger displays.
-- **docs**: PDF documents detailing the API layer design and the project requirements.
+---
+
+## How It Works
+
+The Flutter client communicates directly with a Google Apps Script web app that you deploy on your own Google Sheet. Each user's data is stored in a dedicated tab named after their chosen display name, so there is no shared backend or authentication server.
+
+```
+Flutter Web Client  -->  Google Apps Script  -->  Google Sheets (per-user tabs)
+```
 
 ---
 
@@ -18,65 +29,78 @@ The project is organized as a monorepo containing the following components:
 
 ### Prerequisites
 
-- Node.js (v22 or higher)
 - Flutter SDK (stable channel)
-- MongoDB instance (for backend user authentication)
-- Google Cloud Service Account and Google Sheet (for health log persistence)
+- A Google account with access to Google Sheets and Google Apps Script
 
-### Installation
+### Setting Up the Google Sheet
 
-Install dependencies for all workspace components using the root script:
+1. Create a new Google Sheet.
+2. Open **Extensions > Apps Script**.
+3. Paste the contents of `apps_script.js` into the editor and save.
+4. Click **Deploy > New deployment**, choose type **Web app**.
+5. Set **Execute as** to yourself and **Who has access** to **Anyone**.
+6. Copy the generated web app URL.
+
+### Running the Flutter Client
+
+Install dependencies:
 
 ```bash
-npm run install:all
+cd flutter_client
+flutter pub get
 ```
 
-### Running Locally
-
-Start the backend server and Flutter web client concurrently:
+Run in Chrome:
 
 ```bash
-npm run dev
+flutter run -d chrome
 ```
 
-The server will run on `http://localhost:3000` and the Flutter web client will open in Chrome.
+On first launch, enter your display name and the Apps Script URL copied above to connect.
 
 ### Building for Production
 
-Compile both the server and the Flutter client for production release:
-
 ```bash
-npm run build
+cd flutter_client
+flutter build web --no-web-resources-cdn
 ```
 
-The server distribution will be compiled using `tsc`, and the Flutter web client will be built inside `flutter_client/build/web`.
+The built files will be in `flutter_client/build/web` and can be hosted on any static file host (GitHub Pages, Firebase Hosting, Netlify, etc.).
 
 ### Running Tests
 
-Execute the test suites for both the server and client components:
-
 ```bash
-npm run test
+cd flutter_client
+flutter analyze
+flutter test
 ```
 
 ---
 
-## Project Architecture
+## Features
 
-### Backend API (Server)
-- **Framework**: Express with TypeScript.
-- **Validation**: Zod payload interceptors.
-- **Authentication**: JWT and Bcryptjs.
-- **Persistence**: Google Sheets for clinical vitals/logs and MongoDB for user accounts.
-- **Security**: Rate limiters for auth and API routes.
-
-### Frontend Client (Flutter Client)
-- **Framework**: Flutter Web.
-- **Layout**: Adaptive navigation layout that switches between bottom navigation on compact screens and side navigation rails on desktop.
-- **Features**: User authentication, health logs submission (Weight, Blood Pressure, Heart Rate), and list views of logged history.
+- Log Weight, Blood Pressure, Heart Rate, or all at once
+- Dashboard with latest readings at a glance
+- Full history view with pull-to-refresh
+- Interactive line charts with touch tooltips on the Stats screen
+- Dark mode toggle in the Profile screen
+- CSV export of all logged data
+- Per-user data isolation via dedicated Google Sheets tabs
+- Persistent session using local storage (no repeated setup)
 
 ---
 
-## Architecture Diagram
+## Architecture
 
-![Backend Architecture](./backend_architecture.svg)
+### Flutter Client
+
+- Adaptive navigation layout (bottom bar on mobile, side rail on desktop)
+- Direct HTTP communication with the Apps Script web app using `text/plain` content type to avoid CORS preflight requests
+- Platform-conditional CSV export via conditional imports (`dart:html` on web, stub on other platforms)
+- Theme managed at the app root via a stateful widget exposing a toggle to descendants
+
+### Google Apps Script
+
+- `doPost(e)` accepts JSON payloads and appends rows to the user's tab
+- `doGet(e)` returns all rows for the requesting user as JSON
+- `getOrCreateSheet(userId)` automatically creates and initializes a tab if one does not exist for the user
