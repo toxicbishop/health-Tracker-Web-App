@@ -1,15 +1,40 @@
 /**
  * Google Apps Script Web App for Health Tracker App.
- * Persists health records directly to a Google Sheet.
+ * Persists health records directly to a Google Sheet using user-specific tabs.
  */
+
+function getCleanTabName(userId) {
+  if (!userId) return "Default Logs";
+  // Remove chars not allowed in sheet names: : \ / ? * [ ]
+  var clean = userId.replace(/[:\\\/\?\*\[\]]/g, "");
+  // Limit length to 30 characters
+  clean = clean.substring(0, 30).trim();
+  return clean || "Default Logs";
+}
+
+function getOrCreateSheet(userId) {
+  var tabName = getCleanTabName(userId);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = ss.insertSheet(tabName);
+  }
+  
+  // If headers are missing, write them
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["Timestamp", "UserID", "Type", "Weight", "Systolic", "Diastolic", "Unit", "Notes"]);
+  }
+  
+  return sheet;
+}
 
 function doPost(e) {
   try {
-    var sheet = getOrCreateSheet();
     var payload = JSON.parse(e.postData.contents);
+    var userId = payload.userId || payload.userName || "anonymous";
+    var sheet = getOrCreateSheet(userId);
     
     var timestamp = payload.timestamp || new Date().toISOString();
-    var userId = payload.userId || payload.userName || "anonymous";
     var type = payload.type || "WEIGHT";
     var notes = payload.notes || "";
     
@@ -69,16 +94,16 @@ function doPost(e) {
 
 function doGet(e) {
   try {
-    var sheet = getOrCreateSheet();
     var userId = e.parameter.userId || e.parameter.userName;
     
     if (!userId) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "error",
-        message: "Missing userId or userName parameter"
+        message: "Missing userId parameter"
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
+    var sheet = getOrCreateSheet(userId);
     var data = sheet.getDataRange().getValues();
     if (data.length <= 1) {
       return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
@@ -88,44 +113,40 @@ function doGet(e) {
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
-      var rowUserId = String(row[1]);
+      var timestamp = row[0];
+      var type = row[2];
+      var weight = row[3];
+      var systolic = row[4];
+      var diastolic = row[5];
+      var unit = row[6];
+      var notes = row[7];
       
-      if (rowUserId === userId) {
-        var timestamp = row[0];
-        var type = row[2];
-        var weight = row[3];
-        var systolic = row[4];
-        var diastolic = row[5];
-        var unit = row[6];
-        var notes = row[7];
-        
-        var logObj = {
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: timestamp,
-          userId: rowUserId,
-          type: type,
-          notes: notes || ""
-        };
-        
-        if (type === "WEIGHT") {
-          logObj.weight = weight !== "" ? parseFloat(weight) : null;
-          logObj.unit = unit;
-        } else if (type === "BLOOD_PRESSURE") {
-          logObj.systolic = systolic !== "" ? parseInt(systolic, 10) : null;
-          logObj.diastolic = diastolic !== "" ? parseInt(diastolic, 10) : null;
-          logObj.unit = unit;
-        } else if (type === "HEART_RATE") {
-          logObj.bpm = weight !== "" ? parseInt(weight, 10) : null;
-          logObj.unit = unit;
-        } else if (type === "BOTH") {
-          logObj.weight = weight !== "" ? parseFloat(weight) : null;
-          logObj.systolic = systolic !== "" ? parseInt(systolic, 10) : null;
-          logObj.diastolic = diastolic !== "" ? parseInt(diastolic, 10) : null;
-          logObj.unit = unit;
-        }
-        
-        logs.push(logObj);
+      var logObj = {
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: timestamp,
+        userId: userId,
+        type: type,
+        notes: notes || ""
+      };
+      
+      if (type === "WEIGHT") {
+        logObj.weight = weight !== "" ? parseFloat(weight) : null;
+        logObj.unit = unit;
+      } else if (type === "BLOOD_PRESSURE") {
+        logObj.systolic = systolic !== "" ? parseInt(systolic, 10) : null;
+        logObj.diastolic = diastolic !== "" ? parseInt(diastolic, 10) : null;
+        logObj.unit = unit;
+      } else if (type === "HEART_RATE") {
+        logObj.bpm = weight !== "" ? parseInt(weight, 10) : null;
+        logObj.unit = unit;
+      } else if (type === "BOTH") {
+        logObj.weight = weight !== "" ? parseFloat(weight) : null;
+        logObj.systolic = systolic !== "" ? parseInt(systolic, 10) : null;
+        logObj.diastolic = diastolic !== "" ? parseInt(diastolic, 10) : null;
+        logObj.unit = unit;
       }
+      
+      logs.push(logObj);
     }
     
     // Sort logs descending by timestamp
@@ -141,19 +162,4 @@ function doGet(e) {
       message: error.toString()
     })).setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-function getOrCreateSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Sheet1");
-  if (!sheet) {
-    sheet = ss.insertSheet("Sheet1");
-  }
-  
-  // If headers are missing, write them
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["Timestamp", "UserID", "Type", "Weight", "Systolic", "Diastolic", "Unit", "Notes"]);
-  }
-  
-  return sheet;
 }
