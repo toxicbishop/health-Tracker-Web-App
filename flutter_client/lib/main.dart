@@ -154,27 +154,27 @@ class HealthApi {
   HealthApi(this._client);
 
   final http.Client _client;
-  String? token;
+  String? userName;
+  String? scriptUrl;
 
-  Future<AuthResult> login(String username, String password) async {
-    final data = await _post('/auth/login', {
-      'username': username,
-      'password': password,
-    });
-    token = data['token']?.toString();
-    return AuthResult(
-      userId: data['userId']?.toString() ?? '',
-      token: token ?? '',
-    );
-  }
-
-  Future<AuthResult> register(String username, String password) async {
-    await _post('/auth/register', {'username': username, 'password': password});
-    return login(username, password);
+  Future<void> connect(String name, String url) async {
+    final uri = Uri.parse(url);
+    if (!uri.isScheme('http') && !uri.isScheme('https')) {
+      throw Exception('Invalid Script URL. It must start with http:// or https://');
+    }
+    userName = name;
+    scriptUrl = url;
   }
 
   Future<List<HealthLog>> getLogs() async {
-    final data = await _get('/health-log');
+    if (scriptUrl == null || scriptUrl!.isEmpty || userName == null || userName!.isEmpty) {
+      return [];
+    }
+    final separator = scriptUrl!.contains('?') ? '&' : '?';
+    final requestUrl = '$scriptUrl${separator}userId=${Uri.encodeComponent(userName!)}';
+    
+    final response = await _client.get(Uri.parse(requestUrl));
+    final data = _decode(response);
     if (data is! List) return [];
     return data
         .whereType<Map<String, dynamic>>()
@@ -184,35 +184,28 @@ class HealthApi {
   }
 
   Future<HealthLog> addLog(HealthLog log) async {
-    final data = await _post('/health-log', log.toCreateJson());
-    return HealthLog.fromJson(data);
-  }
+    if (scriptUrl == null || scriptUrl!.isEmpty || userName == null || userName!.isEmpty) {
+      throw Exception('Apps Script configuration is missing');
+    }
 
-  Future<dynamic> _get(String path) async {
-    final response = await _client.get(
-      Uri.parse('$apiBaseUrl$path'),
-      headers: _headers,
-    );
-    return _decode(response);
-  }
+    final body = log.toCreateJson();
+    body['userId'] = userName;
 
-  Future<Map<String, dynamic>> _post(
-    String path,
-    Map<String, dynamic> body,
-  ) async {
+    // Send as text/plain to avoid browser CORS preflight OPTIONS request
     final response = await _client.post(
-      Uri.parse('$apiBaseUrl$path'),
-      headers: _headers,
+      Uri.parse(scriptUrl!),
+      headers: {'Content-Type': 'text/plain'},
       body: jsonEncode(body),
     );
-    final data = _decode(response);
-    return data is Map<String, dynamic> ? data : <String, dynamic>{};
-  }
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    if (token != null && token!.isNotEmpty) 'Authorization': 'Bearer $token',
-  };
+    final data = _decode(response);
+    if (data is Map<String, dynamic> && data['status'] == 'success') {
+      return HealthLog.fromJson(data['data']);
+    } else if (data is Map<String, dynamic> && data['message'] != null) {
+      throw Exception(data['message']);
+    }
+    throw Exception('Failed to save log to Sheets');
+  }
 
   dynamic _decode(http.Response response) {
     final data = response.body.isEmpty ? null : jsonDecode(response.body);
@@ -224,13 +217,6 @@ class HealthApi {
     }
     return data;
   }
-}
-
-class AuthResult {
-  AuthResult({required this.userId, required this.token});
-
-  final String userId;
-  final String token;
 }
 
 class AppRoot extends StatefulWidget {
@@ -256,26 +242,26 @@ class _AppRootState extends State<AppRoot> {
 
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('ht_token');
+    final name = prefs.getString('ht_username');
+    final url = prefs.getString('ht_script_url');
     if (!mounted) return;
     setState(() {
-      _api.token = token;
-      _authenticated = token != null && token.isNotEmpty;
+      _api.userName = name;
+      _api.scriptUrl = url;
+      _authenticated = name != null && name.isNotEmpty && url != null && url.isNotEmpty;
       _booting = false;
     });
     if (_authenticated) await _loadLogs();
   }
 
   Future<void> _authenticate(
-    String username,
-    String password,
-    bool register,
+    String name,
+    String url,
   ) async {
-    final result = register
-        ? await _api.register(username, password)
-        : await _api.login(username, password);
+    await _api.connect(name, url);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('ht_token', result.token);
+    await prefs.setString('ht_username', name);
+    await prefs.setString('ht_script_url', url);
     if (!mounted) return;
     setState(() => _authenticated = true);
     await _loadLogs();
@@ -283,10 +269,12 @@ class _AppRootState extends State<AppRoot> {
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('ht_token');
+    await prefs.remove('ht_username');
+    await prefs.remove('ht_script_url');
     if (!mounted) return;
     setState(() {
-      _api.token = null;
+      _api.userName = null;
+      _api.scriptUrl = null;
       _authenticated = false;
       _logs = [];
       _page = 0;
@@ -333,8 +321,7 @@ class _AppRootState extends State<AppRoot> {
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.onSubmit});
 
-  final Future<void> Function(String username, String password, bool register)
-  onSubmit;
+  final Future<void> Function(String userName, String scriptUrl) onSubmit;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -342,16 +329,15 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _username = TextEditingController();
-  final _password = TextEditingController();
-  var _register = false;
+  final _nameController = TextEditingController();
+  final _urlController = TextEditingController();
   var _loading = false;
   String? _error;
 
   @override
   void dispose() {
-    _username.dispose();
-    _password.dispose();
+    _nameController.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
@@ -362,7 +348,10 @@ class _AuthScreenState extends State<AuthScreen> {
       _error = null;
     });
     try {
-      await widget.onSubmit(_username.text.trim(), _password.text, _register);
+      await widget.onSubmit(
+        _nameController.text.trim(),
+        _urlController.text.trim(),
+      );
     } catch (error) {
       setState(() => _error = _cleanError(error));
     } finally {
@@ -387,34 +376,48 @@ class _AuthScreenState extends State<AuthScreen> {
                     const BrandMark(size: 88),
                     const SizedBox(height: 20),
                     Text(
-                      _register ? 'Create account' : 'Welcome back',
+                      'Welcome to Vital',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineMedium
                           ?.copyWith(fontWeight: FontWeight.w800),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Configure your Google Sheets Apps Script connection to start tracking.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xff64756d),
+                          ),
+                    ),
                     const SizedBox(height: 28),
                     TextFormField(
-                      controller: _username,
+                      controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Username',
+                        labelText: "User's Name",
                         prefixIcon: Icon(Icons.person_outline),
                       ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                          ? 'Enter a username'
+                          ? "Enter your name"
                           : null,
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
-                      controller: _password,
-                      obscureText: true,
+                      controller: _urlController,
                       decoration: const InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline),
+                        labelText: 'Google Apps Script URL',
+                        prefixIcon: Icon(Icons.link_outlined),
                       ),
-                      validator: (value) => value == null || value.length < 6
-                          ? 'Use at least 6 characters'
-                          : null,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Enter your Google Apps Script URL';
+                        }
+                        if (!value.trim().startsWith('http://') &&
+                            !value.trim().startsWith('https://')) {
+                          return 'URL must start with http:// or https://';
+                        }
+                        return null;
+                      },
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
@@ -426,22 +429,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         child: Text(
-                          _loading
-                              ? 'Please wait...'
-                              : _register
-                              ? 'Sign up'
-                              : 'Log in',
+                          _loading ? 'Please wait...' : 'Connect',
                         ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () => setState(() => _register = !_register),
-                      child: Text(
-                        _register
-                            ? 'Already have an account? Log in'
-                            : 'New here? Create account',
                       ),
                     ),
                   ],

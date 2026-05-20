@@ -10,8 +10,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Username'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Welcome to Vital'), findsOneWidget);
+    expect(find.text("User's Name"), findsOneWidget);
+    expect(find.text('Google Apps Script URL'), findsOneWidget);
   });
 }
