@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'file_saver.dart';
+
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'http://localhost:3000',
@@ -14,8 +16,27 @@ void main() {
   runApp(const HealthTrackerApp());
 }
 
-class HealthTrackerApp extends StatelessWidget {
+class HealthTrackerApp extends StatefulWidget {
   const HealthTrackerApp({super.key});
+
+  static HealthTrackerAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<HealthTrackerAppState>();
+
+  @override
+  State<HealthTrackerApp> createState() => HealthTrackerAppState();
+}
+
+class HealthTrackerAppState extends State<HealthTrackerApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void toggleTheme() {
+    setState(() {
+      _themeMode =
+          _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  bool get isDark => _themeMode == ThemeMode.dark;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +45,7 @@ class HealthTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'VITAL',
       debugShowCheckedModeBanner: false,
+      themeMode: _themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -42,6 +64,31 @@ class HealthTrackerApp extends StatelessWidget {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
             borderSide: const BorderSide(color: Color(0xffdce8e2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: seed, width: 1.6),
+          ),
+        ),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: seed,
+          brightness: Brightness.dark,
+        ),
+        scaffoldBackgroundColor: const Color(0xff121212),
+        fontFamily: 'Roboto',
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xff1e1e1e),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: Color(0xff333333)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(18),
+            borderSide: const BorderSide(color: Color(0xff333333)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18),
@@ -834,10 +881,30 @@ class ProfileScreen extends StatelessWidget {
   final List<HealthLog> logs;
   final Future<void> Function() onLogout;
 
+  void _exportCsv(BuildContext context) {
+    final buffer = StringBuffer();
+    buffer.writeln('Timestamp,Type,Weight,Systolic,Diastolic,Unit,Notes');
+    for (final log in logs) {
+      final w = log.weight?.toString() ?? '';
+      final s = log.systolic?.toString() ?? '';
+      final d = log.diastolic?.toString() ?? '';
+      final u = log.unit ?? '';
+      final n = log.notes ?? '';
+      final notesEscaped = n.contains(',') || n.contains('\n') || n.contains('"')
+          ? '"${n.replaceAll('"', '""')}"'
+          : n;
+      buffer.writeln('${log.timestamp.toIso8601String()},${log.type.apiValue},$w,$s,$d,$u,$notesEscaped');
+    }
+    saveFile(buffer.toString(), 'health_logs.csv');
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exporting CSV...')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final weightCount = logs.where((log) => log.weight != null).length;
     final bpCount = logs.where((log) => log.systolic != null).length;
+    final appState = HealthTrackerApp.of(context);
+    final isDark = appState?.isDark ?? false;
 
     return AppScrollView(
       children: [
@@ -865,6 +932,29 @@ class ProfileScreen extends StatelessWidget {
               tone: const Color(0xffdc2626),
             ),
           ],
+        ),
+        const SizedBox(height: 24),
+        ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+          leading: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+          title: const Text('Dark Mode'),
+          trailing: Switch(
+            value: isDark,
+            onChanged: (val) => appState?.toggleTheme(),
+          ),
+        ),
+        const SizedBox(height: 14),
+        ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+          leading: const Icon(Icons.download),
+          title: const Text('Export Data to CSV'),
+          onTap: () => _exportCsv(context),
         ),
         const SizedBox(height: 24),
         FilledButton.tonalIcon(
@@ -941,9 +1031,9 @@ class MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xffe0ebe5)),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -956,7 +1046,7 @@ class MetricCard extends StatelessWidget {
               child: Icon(icon),
             ),
             const SizedBox(height: 18),
-            Text(label, style: const TextStyle(color: Color(0xff64756d))),
+            Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 6),
             Text(
               value,
@@ -980,11 +1070,11 @@ class LogTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xffe0ebe5)),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: ListTile(
         leading: CircleAvatar(child: Icon(log.type.icon)),
@@ -1015,7 +1105,7 @@ class LogTile extends StatelessWidget {
   }
 }
 
-class ChartCard extends StatelessWidget {
+class ChartCard extends StatefulWidget {
   const ChartCard({
     super.key,
     required this.title,
@@ -1028,29 +1118,63 @@ class ChartCard extends StatelessWidget {
   final List<ChartPoint> points;
 
   @override
+  State<ChartCard> createState() => _ChartCardState();
+}
+
+class _ChartCardState extends State<ChartCard> {
+  int? _selectedIndex;
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasPoints = widget.points.length >= 2;
+
+    String displayTitle = widget.title;
+    String displaySub = widget.unit;
+    if (_selectedIndex != null && _selectedIndex! < widget.points.length) {
+      final pt = widget.points[_selectedIndex!];
+      displayTitle = '${widget.title}: ${_trim(pt.value)} ${widget.unit}';
+      displaySub = _formatDate(pt.date);
+    }
+
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: theme.colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Color(0xffe0ebe5)),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionTitle(title: title, trailing: unit),
+            SectionTitle(title: displayTitle, trailing: displaySub),
             const SizedBox(height: 14),
             SizedBox(
               height: 190,
-              child: points.length < 2
+              child: !hasPoints
                   ? const EmptyState(message: 'Add two or more logs to chart.')
-                  : CustomPaint(
-                      painter: LineChartPainter(points),
-                      size: Size.infinite,
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        return GestureDetector(
+                          onPanDown: (details) => _updateSelection(details.localPosition, constraints.maxWidth),
+                          onPanUpdate: (details) => _updateSelection(details.localPosition, constraints.maxWidth),
+                          onTapDown: (details) => _updateSelection(details.localPosition, constraints.maxWidth),
+                          onPanEnd: (_) => setState(() => _selectedIndex = null),
+                          onTapUp: (_) => setState(() => _selectedIndex = null),
+                          onTapCancel: () => setState(() => _selectedIndex = null),
+                          child: CustomPaint(
+                            painter: LineChartPainter(
+                              widget.points,
+                              selectedIndex: _selectedIndex,
+                              isDark: theme.brightness == Brightness.dark,
+                            ),
+                            size: Size.infinite,
+                          ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -1058,28 +1182,43 @@ class ChartCard extends StatelessWidget {
       ),
     );
   }
+
+  void _updateSelection(Offset localPos, double width) {
+    if (widget.points.isEmpty || width <= 0) return;
+    final double indexDouble = (localPos.dx / width) * (widget.points.length - 1);
+    final int index = indexDouble.round().clamp(0, widget.points.length - 1);
+    if (_selectedIndex != index) {
+      setState(() => _selectedIndex = index);
+    }
+  }
 }
 
 class LineChartPainter extends CustomPainter {
-  LineChartPainter(this.points);
+  LineChartPainter(this.points, {this.selectedIndex, required this.isDark});
 
   final List<ChartPoint> points;
+  final int? selectedIndex;
+  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
     final values = points.map((point) => point.value).toList();
     final minValue = values.reduce(math.min);
     final maxValue = values.reduce(math.max);
-    final range = math.max(1, maxValue - minValue);
+    final range = math.max(1.0, maxValue - minValue);
     final path = Path();
+
+    final mainColor = const Color(0xff0f9f7a);
     final line = Paint()
-      ..color = const Color(0xff0f9f7a)
+      ..color = mainColor
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    final dot = Paint()..color = const Color(0xff0f9f7a);
+
+    final dot = Paint()..color = mainColor;
+    final gridColor = isDark ? const Color(0xff2d3732) : const Color(0xffdce8e2);
     final grid = Paint()
-      ..color = const Color(0xffdce8e2)
+      ..color = gridColor
       ..strokeWidth = 1;
 
     for (var i = 0; i < 4; i++) {
@@ -1087,24 +1226,50 @@ class LineChartPainter extends CustomPainter {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
 
+    final calculatedOffsets = <Offset>[];
     for (var i = 0; i < points.length; i++) {
       final x = points.length == 1 ? 0.0 : size.width * i / (points.length - 1);
-      final y =
-          size.height - ((points[i].value - minValue) / range * size.height);
+      final y = size.height - ((points[i].value - minValue) / range * size.height);
+      final offset = Offset(x, y);
+      calculatedOffsets.add(offset);
+
       if (i == 0) {
         path.moveTo(x, y);
       } else {
         path.lineTo(x, y);
       }
-      canvas.drawCircle(Offset(x, y), 4, dot);
     }
 
     canvas.drawPath(path, line);
+
+    for (var i = 0; i < calculatedOffsets.length; i++) {
+      if (i != selectedIndex) {
+        canvas.drawCircle(calculatedOffsets[i], 3, dot);
+      }
+    }
+
+    if (selectedIndex != null && selectedIndex! < calculatedOffsets.length) {
+      final selectedOffset = calculatedOffsets[selectedIndex!];
+
+      final selectionLine = Paint()
+        ..color = mainColor.withValues(alpha: 0.4)
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(
+        Offset(selectedOffset.dx, 0),
+        Offset(selectedOffset.dx, size.height),
+        selectionLine,
+      );
+
+      final glow = Paint()..color = mainColor.withValues(alpha: 0.3);
+      canvas.drawCircle(selectedOffset, 9, glow);
+      canvas.drawCircle(selectedOffset, 4.5, dot);
+    }
   }
 
   @override
   bool shouldRepaint(covariant LineChartPainter oldDelegate) =>
-      oldDelegate.points != points;
+      oldDelegate.points != points || oldDelegate.selectedIndex != selectedIndex || oldDelegate.isDark != isDark;
 }
 
 class ChartPoint {
@@ -1236,7 +1401,7 @@ class SectionTitle extends StatelessWidget {
           ),
         ),
         if (trailing != null)
-          Text(trailing!, style: const TextStyle(color: Color(0xff64756d))),
+          Text(trailing!, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
       ],
     );
   }
